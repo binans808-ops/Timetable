@@ -141,13 +141,15 @@
       <div id="map"></div>
       <p id="locationStatus" style="font-weight:bold; font-size:13px; color:#2c3e50;"></p>
       
-      <button onclick="captureCurrentLocation()" style="background:#8e44ad; margin-bottom: 5px;">📍 استخدام موقعي الحالي الحالي على الخريطة</button>
+      <button onclick="captureCurrentLocation()" style="background:#8e44ad; margin-bottom: 5px;">📍 استخدام موقعي الحالي على الخريطة</button>
       
       <label>نصف قطر دائرة العمل المسموح:</label>
       <select id="geoRadius">
         <option value="100">100 متر</option>
         <option value="200">200 متر</option>
         <option value="300">300 متر</option>
+        <option value="500">500 متر</option>
+        <option value="1000">1 كيلومتر (1000 متر)</option>
       </select>
       <button onclick="saveGeoSettings()">حفظ إعدادات الموقع</button>
 
@@ -242,10 +244,9 @@
   const db = firebase.database();
 
   let map, marker;
-  let selectedLat = 33.5138; // افتراضي (دمشق كمثال)
+  let selectedLat = 33.5138; 
   let selectedLon = 36.2765;
 
-  // تهيئة الخريطة عند فتح الصفحة أو تبويب الأدمن
   function initMap(lat, lon) {
     if(!map) {
       map = L.map('map').setView([lat, lon], 15);
@@ -256,7 +257,6 @@
 
       marker = L.marker([lat, lon], { draggable: true }).addTo(map);
 
-      // تحديث الإحداثيات عند سحب الدبوس
       marker.on('dragend', function(event) {
         const position = marker.getLatLng();
         selectedLat = position.lat;
@@ -264,7 +264,6 @@
         document.getElementById("locationStatus").innerText = `الإحداثيات المختارة: (${selectedLat.toFixed(5)}, ${selectedLon.toFixed(5)})`;
       });
 
-      // النقر على الخريطة لتغيير مكان الدبوس
       map.on('click', function(event) {
         selectedLat = event.latlng.lat;
         selectedLon = event.latlng.lng;
@@ -278,7 +277,6 @@
     document.getElementById("locationStatus").innerText = `الإحداثيات المختارة: (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
   }
 
-  // جلب التنبيه العام
   db.ref("settings/notice").on("value", (snapshot) => {
     const notice = snapshot.val();
     const container = document.getElementById("generalNoticeContainer");
@@ -308,7 +306,6 @@
     }
   }
 
-  // جلب موقع الجهاز الحالي وتحريك الدبوس عليه بالخريطة
   function captureCurrentLocation() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((position) => {
@@ -335,7 +332,6 @@
     alert("تم حفظ إعدادات نطاق العمل بنجاح");
   }
 
-  // دالة لحساب المسافة بين نقطتين جغرافيتين بالمتر (Haversine Formula)
   function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371000;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -367,7 +363,6 @@
       document.getElementById("adminLoginBox").classList.add("hidden");
       document.getElementById("adminDashboard").classList.remove("hidden");
       
-      // جلب الإحداثيات المخزنة مسبقاً إن وجدت لضبط الخريطة عليها
       db.ref("settings/geoFence").once("value", (snapshot) => {
         const geo = snapshot.val();
         if(geo && geo.lat && geo.lon) {
@@ -778,7 +773,7 @@
   }
 
   function deleteRecord(key) {
-    if(confirm("هل أنت متضد من حذف هذا السجل؟")) {
+    if(confirm("هل أنت متأكد من حذف هذا السجل؟")) {
       db.ref("attendance/" + key).remove();
     }
   }
