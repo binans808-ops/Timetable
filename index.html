@@ -2,8 +2,10 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>جدول الدوام - متعدد المواقع</title>
+  <title>جدول الدوام</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- مكتبة الخرائط Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body { font-family: 'Tajawal', sans-serif; background:#f4f6f9; text-align:center; padding:15px; margin:0; color:#333; }
     h1, h2, h3 { color:#2c3e50; }
@@ -26,9 +28,12 @@
     .hidden { display:none; }
     .nav-tabs { display:flex; justify-content:center; gap:10px; margin-bottom:20px; }
     .nav-tabs button { width:auto; padding:10px 20px; }
+    #map { height: 350px; width: 100%; border-radius: 8px; margin: 10px 0; border: 1px solid #ccc; z-index: 1; }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- مكتبة الخرائط Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -129,42 +134,22 @@
       <div id="adminAlertsContainer"></div>
 
       <hr>
-      <h3>إدارة مواقع العمل المتعددة (GPS)</h3>
-      <p style="font-size: 13px; color: #666;">قم بإضافة وتحديد الفروع أو المواقع المسموح بالدوام فيها:</p>
+      <h3>إعدادات نطاق العمل (تحديد الموقع من الخريطة)</h3>
+      <p style="font-size: 13px; color: #666;">انقر على الخريطة أو اسحب الدبوس لتحديد مركز العمل بدقة:</p>
       
-      <label>اسم الموقع أو الفرع:</label>
-      <input type="text" id="locationName" placeholder="مثال: الفرع الرئيسي - الرياض">
-
-      <label>خط العرض (Latitude):</label>
-      <input type="number" step="any" id="manualLat" placeholder="مثال: 24.7136">
-
-      <label>خط الطول (Longitude):</label>
-      <input type="number" step="any" id="manualLon" placeholder="مثال: 46.6753">
-
+      <!-- خريطة اختيار الموقع -->
+      <div id="map"></div>
+      <p id="locationStatus" style="font-weight:bold; font-size:13px; color:#2c3e50;"></p>
+      
+      <button onclick="captureCurrentLocation()" style="background:#8e44ad; margin-bottom: 5px;">📍 استخدام موقعي الحالي الحالي على الخريطة</button>
+      
       <label>نصف قطر دائرة العمل المسموح:</label>
       <select id="geoRadius">
         <option value="100">100 متر</option>
         <option value="200">200 متر</option>
         <option value="300">300 متر</option>
       </select>
-      <button onclick="addNewLocation()">إضافة الموقع إلى القائمة</button>
-
-      <div style="overflow-x:auto; margin-top:15px;">
-        <table>
-          <thead>
-            <tr>
-              <th>اسم الموقع</th>
-              <th>خط العرض</th>
-              <th>خط الطول</th>
-              <th>النقطة (القطر)</th>
-              <th>إجراء</th>
-            </tr>
-          </thead>
-          <tbody id="adminLocationsList">
-            <tr><td colspan="5">لا توجد مواقع مسجلة</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <button onclick="saveGeoSettings()">حفظ إعدادات الموقع</button>
 
       <hr>
       <h3>إدارة التنبيهات العامة للموظفين</h3>
@@ -256,67 +241,41 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
-  // جلب وعرض المواقع المتعددة المسجلة
-  db.ref("settings/locations").on("value", (snapshot) => {
-    const list = document.getElementById("adminLocationsList");
-    list.innerHTML = "";
-    let count = 0;
-    snapshot.forEach((child) => {
-      count++;
-      const key = child.key;
-      const loc = child.val();
-      list.innerHTML += `
-        <tr>
-          <td>${loc.name}</td>
-          <td>${loc.lat}</td>
-          <td>${loc.lon}</td>
-          <td>${loc.radius} متر</td>
-          <td><button onclick="deleteLocation('${key}')" class="btn-danger" style="padding:5px 10px; font-size:12px;">حذف</button></td>
-        </tr>
-      `;
-    });
-    if(count === 0) {
-      list.innerHTML = `<tr><td colspan="5">لا توجد مواقع مسجلة حالياً</td></tr>`;
+  let map, marker;
+  let selectedLat = 33.5138; // افتراضي (دمشق كمثال)
+  let selectedLon = 36.2765;
+
+  // تهيئة الخريطة عند فتح الصفحة أو تبويب الأدمن
+  function initMap(lat, lon) {
+    if(!map) {
+      map = L.map('map').setView([lat, lon], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+
+      marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+
+      // تحديث الإحداثيات عند سحب الدبوس
+      marker.on('dragend', function(event) {
+        const position = marker.getLatLng();
+        selectedLat = position.lat;
+        selectedLon = position.lng;
+        document.getElementById("locationStatus").innerText = `الإحداثيات المختارة: (${selectedLat.toFixed(5)}, ${selectedLon.toFixed(5)})`;
+      });
+
+      // النقر على الخريطة لتغيير مكان الدبوس
+      map.on('click', function(event) {
+        selectedLat = event.latlng.lat;
+        selectedLon = event.latlng.lng;
+        marker.setLatLng([selectedLat, selectedLon]);
+        document.getElementById("locationStatus").innerText = `الإحداثيات المختارة: (${selectedLat.toFixed(5)}, ${selectedLon.toFixed(5)})`;
+      });
+    } else {
+      map.setView([lat, lon], 15);
+      marker.setLatLng([lat, lon]);
     }
-  });
-
-  function addNewLocation() {
-    const name = document.getElementById("locationName").value.trim();
-    const latInput = document.getElementById("manualLat").value;
-    const lonInput = document.getElementById("manualLon").value;
-    const radius = document.getElementById("geoRadius").value;
-
-    if(!name || !latInput || !lonInput) {
-      alert("الرجاء إدخال اسم الموقع، خط العرض وخط الطول بشكل صحيح.");
-      return;
-    }
-
-    const lat = parseFloat(latInput);
-    const lon = parseFloat(lonInput);
-
-    if(isNaN(lat) || isNaN(lon)) {
-      alert("الإحداثيات المدخلة غير صحيحة، يجب أن تكون أرقاماً.");
-      return;
-    }
-
-    db.ref("settings/locations").push({
-      name: name,
-      lat: lat,
-      lon: lon,
-      radius: parseInt(radius)
-    });
-
-    alert("تمت إضافة الموقع بنجاح!");
-    document.getElementById("locationName").value = "";
-    document.getElementById("manualLat").value = "";
-    document.getElementById("manualLon").value = "";
-  }
-
-  function deleteLocation(key) {
-    if(confirm("هل أنت متأكد من حذف هذا الموقع؟")) {
-      db.ref("settings/locations/" + key).remove();
-      alert("تم الحذف بنجاح");
-    }
+    document.getElementById("locationStatus").innerText = `الإحداثيات المختارة: (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
   }
 
   // جلب التنبيه العام
@@ -347,6 +306,33 @@
       db.ref("settings/notice").remove();
       alert("تم حذف التنبيه بنجاح");
     }
+  }
+
+  // جلب موقع الجهاز الحالي وتحريك الدبوس عليه بالخريطة
+  function captureCurrentLocation() {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        selectedLat = position.coords.latitude;
+        selectedLon = position.coords.longitude;
+        marker.setLatLng([selectedLat, selectedLon]);
+        map.setView([selectedLat, selectedLon], 16);
+        document.getElementById("locationStatus").innerText = `تم تحديث الموقع لموقعك الحالي: (${selectedLat.toFixed(5)}, ${selectedLon.toFixed(5)})`;
+      }, (error) => {
+        alert("فشل في تحديد الموقع. تأكد من تفعيل الـ GPS والسماح للمتصفح.");
+      });
+    } else {
+      alert("المتصفح لا يدعم تحديد الموقع الجغرافي.");
+    }
+  }
+
+  function saveGeoSettings() {
+    const radius = document.getElementById("geoRadius").value;
+    db.ref("settings/geoFence").set({
+      lat: selectedLat,
+      lon: selectedLon,
+      radius: parseInt(radius)
+    });
+    alert("تم حفظ إعدادات نطاق العمل بنجاح");
   }
 
   // دالة لحساب المسافة بين نقطتين جغرافيتين بالمتر (Haversine Formula)
@@ -380,6 +366,18 @@
     if(pass === "admin123") {
       document.getElementById("adminLoginBox").classList.add("hidden");
       document.getElementById("adminDashboard").classList.remove("hidden");
+      
+      // جلب الإحداثيات المخزنة مسبقاً إن وجدت لضبط الخريطة عليها
+      db.ref("settings/geoFence").once("value", (snapshot) => {
+        const geo = snapshot.val();
+        if(geo && geo.lat && geo.lon) {
+          selectedLat = geo.lat;
+          selectedLon = geo.lon;
+          document.getElementById("geoRadius").value = geo.radius || 100;
+        }
+        setTimeout(() => { initMap(selectedLat, selectedLon); }, 200);
+      });
+
     } else {
       alert("كلمة المرور غير صحيحة");
     }
@@ -406,7 +404,6 @@
     }
   }
 
-  // إدارة جدول الدوام (إداري وتجميعي)
   function addShiftMember() {
     const name = document.getElementById("shiftEmpName").value.trim();
     const type = document.getElementById("shiftType").value;
@@ -441,7 +438,6 @@
     }
   });
 
-  // إرسال طلب إجازة من الموظف
   function submitLeaveRequest() {
     const name = document.getElementById("empName").value.trim();
     const type = document.getElementById("leaveType").value;
@@ -535,15 +531,15 @@
     }
   }
 
-  // تسجيل الحضور والانصراف مع التحقق التلقائي من أي من المواقع المتعددة المسجلة
   function recordAction(type) {
     const name = document.getElementById("empName").value.trim();
     const msg = document.getElementById("empMessage");
     if(name === "") { alert("الرجاء كتابة اسم الموظف أولاً"); return; }
 
-    db.ref("settings/locations").once("value", (locationsSnap) => {
-      if(!locationsSnap.exists()) {
-        alert("لم تقم الإدارة بتحديد أي مواقع عمل جغرافية (GPS) بعد!");
+    db.ref("settings/geoFence").once("value", (geoSnap) => {
+      const geo = geoSnap.val();
+      if(!geo) {
+        alert("لم تقم الإدارة بتحديد نطاق العمل الجغرافي من الخريطة بعد!");
         return;
       }
 
@@ -559,26 +555,16 @@
         const userLat = position.coords.latitude;
         const userLon = position.coords.longitude;
 
-        let isWithinAnyLocation = false;
-        let matchedLocationName = "";
+        const distance = calculateDistance(userLat, userLon, geo.lat, geo.lon);
 
-        locationsSnap.forEach((child) => {
-          const loc = child.val();
-          const distance = calculateDistance(userLat, userLon, loc.lat, loc.lon);
-          if (distance <= loc.radius) {
-            isWithinAnyLocation = true;
-            matchedLocationName = loc.name;
-          }
-        });
-
-        if (!isWithinAnyLocation) {
+        if (distance > geo.radius) {
           msg.style.color = "red";
-          msg.innerText = `عذراً، أنت خارج نطاق جميع فروع ومواقع العمل المسموحة!`;
+          msg.innerText = `عذراً، أنت خارج نطاق العمل المسموح! المسافة الحالية عن مركز العمل: ${Math.round(distance)} متر (الحد الأقصى المسموح: ${geo.radius} متر).`;
           checkAndTriggerOverrun(name, type, true);
           return;
         }
 
-        proceedWithAttendance(name, type, msg, matchedLocationName);
+        proceedWithAttendance(name, type, msg);
 
       }, (error) => {
         msg.style.color = "red";
@@ -615,10 +601,10 @@
     }
   }
 
-  function proceedWithAttendance(name, type, msg, locationName) {
+  function proceedWithAttendance(name, type, msg) {
     const todayDate = getTodayDate();
     const timeNowStr = new Date().toLocaleTimeString("ar-EG", {hour12: false});
-    const timeNowDisplay = new Date().toLocaleTimeString("ar-EG") + ` (${locationName})`;
+    const timeNowDisplay = new Date().toLocaleTimeString("ar-EG");
 
     db.ref("leaveRequests").once("value", (leaveSnap) => {
       let isBlocked = false;
@@ -665,7 +651,7 @@
             db.ref("attendance").push({ name: name, date: todayDate, checkIn: timeNowDisplay, checkOut: "-" });
           }
           msg.style.color = "green";
-          msg.innerText = `تم تسجيل الحضور بنجاح في فرع (${locationName}) وقت: ` + timeNowDisplay;
+          msg.innerText = "تم تسجيل الحضور بنجاح داخل نطاق العمل في " + timeNowDisplay;
         } 
         else if(type === 'checkOut') {
           if(!existingData || !existingData.checkIn) {
@@ -681,7 +667,7 @@
 
           db.ref("attendance/" + recordKey).update({ checkOut: timeNowDisplay });
           msg.style.color = "green";
-          msg.innerText = `تم تسجيل الانصراف بنجاح في فرع (${locationName}) وقت: ` + timeNowDisplay;
+          msg.innerText = "تم تسجيل الانصراف بنجاح في " + timeNowDisplay;
 
           if(hourlyLeaveInfo) {
             const [startH, startM] = hourlyLeaveInfo.startTime.split(':').map(Number);
@@ -704,7 +690,6 @@
     });
   }
 
-  // جدول طلبات الإجازات المنفصل للإدارة
   db.ref("leaveRequests").on("value", (snapshot) => {
     const list = document.getElementById("adminLeavesTableList");
     list.innerHTML = "";
@@ -755,7 +740,6 @@
     }
   }
 
-  // عرض إشعارات التجاوز للإدارة
   db.ref("overruns").on("value", (snapshot) => {
     const container = document.getElementById("adminAlertsContainer");
     container.innerHTML = "";
@@ -765,7 +749,6 @@
     });
   });
 
-  // جلب السجلات للإدارة
   db.ref("attendance").on("value", (snapshot) => {
     const list = document.getElementById("attendanceList");
     list.innerHTML = "";
@@ -776,8 +759,8 @@
         <tr>
           <td>${data.name}</td>
           <td>${data.date}</td>
-          <td><input type="text" value="${data.checkIn || '-'}" id="in_${key}" style="width:120px; text-align:center;"></td>
-          <td><input type="text" value="${data.checkOut || '-'}" id="out_${key}" style="width:120px; text-align:center;"></td>
+          <td><input type="text" value="${data.checkIn || '-'}" id="in_${key}" style="width:90px; text-align:center;"></td>
+          <td><input type="text" value="${data.checkOut || '-'}" id="out_${key}" style="width:90px; text-align:center;"></td>
           <td>
             <button onclick="updateRecord('${key}')" style="padding:5px 10px; font-size:12px;">تعديل</button>
             <button onclick="deleteRecord('${key}')" class="btn-danger" style="padding:5px 10px; font-size:12px;">حذف</button>
@@ -795,7 +778,7 @@
   }
 
   function deleteRecord(key) {
-    if(confirm("هل أنت متأكد من حذف هذا السجل؟")) {
+    if(confirm("هل أنت متضد من حذف هذا السجل؟")) {
       db.ref("attendance/" + key).remove();
     }
   }
@@ -812,7 +795,6 @@
     }
   }
 
-  // تصدير البيانات إلى ملف Excel (CSV)
   function exportToExcel() {
     db.ref("attendance").once("value", (snapshot) => {
       let csvContent = "\uFEFFاسم الموظف,التاريخ,وقت الحضور,وقت الانصراف\n";
