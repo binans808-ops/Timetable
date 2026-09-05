@@ -2,10 +2,12 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>جدول الدوام</title>
+  <title>جدول الدوام نظام الإدارة</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
   <!-- مكتبة الخرائط Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
   <style>
     body { font-family: 'Tajawal', sans-serif; background:#f4f6f9; text-align:center; padding:15px; margin:0; color:#333; }
     h1, h2, h3 { color:#2c3e50; }
@@ -30,6 +32,8 @@
     .nav-tabs button { width:auto; padding:10px 20px; }
     #map { height: 350px; width: 100%; border-radius: 8px; margin: 10px 0; border: 1px solid #ccc; z-index: 1; }
   </style>
+
+  <!-- Firebase Scripts -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <!-- مكتبة الخرائط Leaflet JS -->
@@ -134,10 +138,14 @@
       <div id="adminAlertsContainer"></div>
 
       <hr>
+      <h3>تغيير كلمة مرور الإدارة 🔐</h3>
+      <input type="password" id="newAdminPass" placeholder="كلمة المرور الجديدة...">
+      <button onclick="changeAdminPassword()" style="background:#8e44ad;">تحديث كلمة المرور</button>
+
+      <hr>
       <h3>إعدادات نطاق العمل (تحديد الموقع من الخريطة)</h3>
       <p style="font-size: 13px; color: #666;">انقر على الخريطة أو اسحب الدبوس لتحديد مركز العمل بدقة:</p>
       
-      <!-- خريطة اختيار الموقع -->
       <div id="map"></div>
       <p id="locationStatus" style="font-weight:bold; font-size:13px; color:#2c3e50;"></p>
       
@@ -194,6 +202,36 @@
       </div>
 
       <hr>
+      <h3>أرشيف جداول الدوام اليومية والشهري (31 يوماً) 📅</h3>
+      <p style="font-size:13px; color:#555;">تتم أرشفة السجلات اليومية تلقائياً للـ 31 يوماً الأخيرة للاطلاع والتصدير عند رأس الشهر.</p>
+      <div class="flex-group" style="margin-bottom:10px;">
+        <select id="archiveDateSelect" onchange="displaySelectedArchive()">
+          <option value="">اختر اليوم لعرض السجل الخاص به...</option>
+        </select>
+        <button onclick="manualSaveDailyArchive()" style="background:#27ae60; width:auto; white-space:nowrap;">💾 حفظ سجّل اليوم</button>
+      </div>
+      <div class="flex-group">
+        <button onclick="exportArchiveDayToExcel()" class="btn-excel">📊 تصدير سجل اليوم المختار إلى Excel</button>
+        <button onclick="exportFullArchiveToExcel()" class="btn-excel" style="background:#8e44ad;">📁 تصدير الأرشيف الشهري الكامل (31 يوماً) إلى Excel</button>
+      </div>
+
+      <div style="overflow-x:auto; margin-top:10px;">
+        <table id="archiveDisplayTable">
+          <thead>
+            <tr>
+              <th>الاسم</th>
+              <th>التاريخ</th>
+              <th>الحضور</th>
+              <th>الانصراف</th>
+            </tr>
+          </thead>
+          <tbody id="archiveDisplayList">
+            <tr><td colspan="4">اختر تاريخاً من القائمة لمشاهدة سجل الدوام الخاص به.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <hr>
       <h3>جدول طلبات الإجازات المنفصل (إدارة الطلبات)</h3>
       <div style="overflow-x:auto;">
         <table>
@@ -213,7 +251,7 @@
       </div>
 
       <hr>
-      <h3>سجلات الحضور والانصراف</h3>
+      <h3>سجلات الحضور والانصراف اللحظية</h3>
       <button onclick="exportToExcel()" class="btn-excel">📥 تصدير السجلات إلى ملف Excel (CSV)</button>
       <br>
       <input type="text" id="searchBox" onkeyup="filterTable()" placeholder="ابحث باسم الموظف...">
@@ -246,6 +284,30 @@
   let map, marker;
   let selectedLat = 33.5138; 
   let selectedLon = 36.2765;
+  let currentAdminPassword = "admin123";
+
+  // جلب كلمة مرور الأدمن
+  db.ref("settings/adminPassword").on("value", (snap) => {
+    if(snap.exists()) {
+      currentAdminPassword = snap.val();
+    }
+  });
+
+  function changeAdminPassword() {
+    const newPass = document.getElementById("newAdminPass").value.trim();
+    if(!newPass) {
+      alert("الرجاء إدخال كلمة المرور الجديدة.");
+      return;
+    }
+    db.ref("settings/adminPassword").set(newPass, (err) => {
+      if(!err) {
+        alert("تم تغيير كلمة مرور الإدارة بنجاح!");
+        document.getElementById("newAdminPass").value = "";
+      } else {
+        alert("حدث خطأ أثناء تغيير كلمة المرور.");
+      }
+    });
+  }
 
   function initMap(lat, lon) {
     if(!map) {
@@ -359,7 +421,7 @@
 
   function loginAdmin() {
     const pass = document.getElementById("adminPass").value;
-    if(pass === "admin123") {
+    if(pass === currentAdminPassword) {
       document.getElementById("adminLoginBox").classList.add("hidden");
       document.getElementById("adminDashboard").classList.remove("hidden");
       
@@ -647,6 +709,7 @@
           }
           msg.style.color = "green";
           msg.innerText = "تم تسجيل الحضور بنجاح داخل نطاق العمل في " + timeNowDisplay;
+          autoSyncDailyArchive();
         } 
         else if(type === 'checkOut') {
           if(!existingData || !existingData.checkIn) {
@@ -663,6 +726,7 @@
           db.ref("attendance/" + recordKey).update({ checkOut: timeNowDisplay });
           msg.style.color = "green";
           msg.innerText = "تم تسجيل الانصراف بنجاح في " + timeNowDisplay;
+          autoSyncDailyArchive();
 
           if(hourlyLeaveInfo) {
             const [startH, startM] = hourlyLeaveInfo.startTime.split(':').map(Number);
@@ -763,6 +827,7 @@
         </tr>
       `;
     });
+    autoSyncDailyArchive();
   });
 
   function updateRecord(key) {
@@ -809,7 +874,180 @@
       document.body.removeChild(a);
     });
   }
+
+  /* --- نظام أرشيف الـ 31 يوماً والتصدير المنظم --- */
+
+  function autoSyncDailyArchive() {
+    const today = getTodayDate();
+    db.ref("attendance").once("value", (snapshot) => {
+      let todayRecords = [];
+      snapshot.forEach((child) => {
+        const rec = child.val();
+        if(rec.date === today) {
+          todayRecords.push(rec);
+        }
+      });
+      if(todayRecords.length > 0) {
+        db.ref("dailyArchive/" + today).set(todayRecords);
+        cleanOldArchives();
+      }
+    });
+  }
+
+  function manualSaveDailyArchive() {
+    const today = getTodayDate();
+    db.ref("attendance").once("value", (snapshot) => {
+      let todayRecords = [];
+      snapshot.forEach((child) => {
+        const rec = child.val();
+        if(rec.date === today) {
+          todayRecords.push(rec);
+        }
+      });
+      if(todayRecords.length === 0) {
+        alert("لا توجد سجلات دوام مُسجلة لهذا اليوم لغاية الآن.");
+        return;
+      }
+      db.ref("dailyArchive/" + today).set(todayRecords, (error) => {
+        if(!error) {
+          alert(`تم حفظ أرشيف يوم (${today}) بنجاح!`);
+          cleanOldArchives();
+        } else {
+          alert("حدث خطأ أثناء حفظ الأرشيف.");
+        }
+      });
+    });
+  }
+
+  function cleanOldArchives() {
+    db.ref("dailyArchive").once("value", (snapshot) => {
+      if(!snapshot.exists()) return;
+      let dates = [];
+      snapshot.forEach((child) => {
+        dates.push(child.key);
+      });
+      dates.sort();
+      if(dates.length > 31) {
+        let toRemoveCount = dates.length - 31;
+        for(let i = 0; i < toRemoveCount; i++) {
+          db.ref("dailyArchive/" + dates[i]).remove();
+        }
+      }
+    });
+  }
+
+  db.ref("dailyArchive").on("value", (snapshot) => {
+    const select = document.getElementById("archiveDateSelect");
+    const currentVal = select.value;
+    select.innerHTML = `<option value="">اختر اليوم لعرض السجل الخاص به...</option>`;
+    
+    let dates = [];
+    snapshot.forEach((child) => {
+      dates.push(child.key);
+    });
+    
+    dates.sort().reverse();
+
+    dates.forEach((dateKey) => {
+      select.innerHTML += `<option value="${dateKey}">سجل يوم: ${dateKey}</option>`;
+    });
+
+    if(currentVal && dates.includes(currentVal)) {
+      select.value = currentVal;
+      displaySelectedArchive();
+    }
+  });
+
+  function displaySelectedArchive() {
+    const dateKey = document.getElementById("archiveDateSelect").value;
+    const list = document.getElementById("archiveDisplayList");
+    if(!dateKey) {
+      list.innerHTML = `<tr><td colspan="4">اختر تاريخاً من القائمة لمشاهدة سجل الدوام الخاص به.</td></tr>`;
+      return;
+    }
+
+    db.ref("dailyArchive/" + dateKey).once("value", (snapshot) => {
+      list.innerHTML = "";
+      if(!snapshot.exists()) {
+        list.innerHTML = `<tr><td colspan="4">لا توجد سجلات محفوظة لهذا اليوم</td></tr>`;
+        return;
+      }
+      snapshot.forEach((child) => {
+        const data = child.val();
+        list.innerHTML += `
+          <tr>
+            <td>${data.name}</td>
+            <td>${data.date}</td>
+            <td>${data.checkIn || '-'}</td>
+            <td>${data.checkOut || '-'}</td>
+          </tr>
+        `;
+      });
+    });
+  }
+
+  function exportArchiveDayToExcel() {
+    const dateKey = document.getElementById("archiveDateSelect").value;
+    if(!dateKey) {
+      alert("الرجاء اختيار تاريخ من القائمة أولاً لتصديره.");
+      return;
+    }
+
+    db.ref("dailyArchive/" + dateKey).once("value", (snapshot) => {
+      if(!snapshot.exists()) {
+        alert("لا توجد بيانات محفوظة لتاريخ هذا اليوم.");
+        return;
+      }
+      let csvContent = "\uFEFFاسم الموظف,التاريخ,وقت الحضور,وقت الانصراف\n";
+      snapshot.forEach((child) => {
+        const data = child.val();
+        csvContent += `"${data.name}","${data.date}","${data.checkIn || '-'}","${data.checkOut || '-'}"\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `جدول_دوام_يومي_${dateKey}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  }
+
+  function exportFullArchiveToExcel() {
+    db.ref("dailyArchive").once("value", (snapshot) => {
+      if(!snapshot.exists()) {
+        alert("الأرشيف فارغ حالياً.");
+        return;
+      }
+      let csvContent = "\uFEFFتاريخ الأرشيف,اسم الموظف,تاريخ الدوام,وقت الحضور,وقت الانصراف\n";
+      let dates = [];
+      snapshot.forEach((child) => {
+        dates.push(child.key);
+      });
+      dates.sort();
+
+      dates.forEach((dKey) => {
+        const dayData = snapshot.child(dKey);
+        dayData.forEach((child) => {
+          const data = child.val();
+          csvContent += `"${dKey}","${data.name}","${data.date}","${data.checkIn || '-'}","${data.checkOut || '-'}"\n`;
+        });
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `الأرشيف_الشهري_31_يوماً_${getTodayDate()}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+  }
 </script>
 
 </body>
 </html>
+
