@@ -1,1291 +1,704 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>نظام إدارة الدوام والمراكز الشامل</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <!-- مكتبة الخرائط Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  
-  <style>
-    body { font-family: 'Tajawal', sans-serif; background:#f4f6f9; text-align:center; padding:15px; margin:0; color:#333; }
-    h1, h2, h3 { color:#2c3e50; }
-    .card { background:white; padding:20px; border-radius:12px; box-shadow:0 4px 10px rgba(0,0,0,0.05); max-width:950px; margin:15px auto; text-align:right; }
-    input, button, select { padding:10px; margin:5px 0; border-radius:8px; border:1px solid #ccc; font-size:14px; box-sizing:border-box; width:100%; }
-    button { background:#27ae60; color:white; border:none; cursor:pointer; font-weight:bold; }
-    button:hover { background:#219150; }
-    .btn-danger { background:#e74c3c; } .btn-danger:hover { background:#c0392b; }
-    .btn-warning { background:#f39c12; } .btn-warning:hover { background:#d68910; }
-    .btn-excel { background:#2980b9; margin-bottom: 5px; } .btn-excel:hover { background:#1f618d; }
-    .btn-action { padding:6px 10px; font-size:12px; margin:2px; width:auto; display:inline-block; }
-    
-    .center-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px; margin-bottom:15px; }
-    .center-btn { background:#34495e; color:white; padding:12px; border-radius:8px; font-weight:bold; width:100%; }
-    .center-btn.active { background:#e67e22; }
-    
-    table { width:100%; margin-top:15px; border-collapse:collapse; background:white; font-size:14px; }
-    th, td { padding:8px; border:1px solid #ddd; text-align:center; vertical-align:middle; }
-    th { background:#2c3e50; color:white; }
-    
-    /* ألوان حالات جدول الإدارة اليومي */
-    .status-on-time { color: #27ae60; font-weight: bold; }
-    .status-late { color: #e74c3c; font-weight: bold; background-color: #fadbd8; }
-    .status-absent { color: #e67e22; font-weight: bold; }
-    
-    .late-box { background:#fadbd8; border:2px solid #e74c3c; padding:12px; border-radius:8px; margin-bottom:15px; color:#c0392b; text-align:right; }
-    .late-user { color:#e74c3c; font-weight:bold; display:inline-block; background:#fff; padding:3px 8px; border-radius:4px; margin:3px; border:1px solid #e74c3c; }
-    .alert-box { background:#e8f8f5; border-right:4px solid #27ae60; padding:10px; margin-bottom:15px; border-radius:4px; text-align:right; }
-    .warning-box { background:#fadbd8; border-right:4px solid #e74c3c; padding:10px; margin-bottom:15px; border-radius:4px; font-weight:bold; color:#c0392b; text-align:right; }
-    
-    .hidden { display:none !important; }
-    .flex-group { display:flex; gap:10px; align-items:center; }
-    .nav-tabs { display:flex; justify-content:center; gap:10px; margin-bottom:20px; }
-    .nav-tabs button { width:auto; padding:10px 20px; }
-    #map { height: 350px; width: 100%; border-radius: 8px; margin: 10px 0; border: 1px solid #ccc; z-index: 1; }
-    
-    .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:999; }
-    .modal-content { background:white; padding:20px; border-radius:10px; width:90%; max-width:450px; text-align:right; }
-  </style>
-
-  <!-- Firebase Scripts -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جدول دوام</title>
+    <!-- Leaflet CSS Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --bg: #f8f9fa;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); margin: 0; padding: 15px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1, h2, h3 { text-align: center; color: var(--primary); }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .ticker { background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-bottom: 20px; text-align: center; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
+        button { background: var(--accent); color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { opacity: 0.9; }
+        button.danger { background: var(--danger); }
+        button.success { background: var(--success); }
+        input, select, textarea { width: 100%; padding: 8px; margin: 5px 0 15px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background: var(--primary); color: white; }
+        .badge { padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; display: inline-block; }
+        .bg-green { background-color: var(--success); }
+        .bg-red { background-color: var(--danger); }
+        .bg-orange { background-color: var(--warning); }
+        #map { height: 300px; border-radius: 8px; margin-bottom: 10px; }
+        .tab-btn { background: #e0e0e0; color: #333; margin-right: 5px; }
+        .tab-btn.active { background: var(--primary); color: white; }
+    </style>
 </head>
 <body>
 
-  <h1>نظام إدارة الدوام والمراكز الشامل</h1>
-
-  <div class="nav-tabs">
-    <button onclick="switchRole('employee')" class="btn-warning" id="tabEmp">واجهة المراكز والموظفين</button>
-    <button onclick="switchRole('admin')" id="tabAdm">لوحة التحكم والإدارة</button>
-  </div>
-
-  <!-- واجهة الموظفين والمراكز -->
-  <div id="employeeSection" class="card">
-    <div id="generalNoticeContainer"></div>
-
-    <h3>اختر مركز العمل:</h3>
-    <div class="center-grid" id="centersButtonsContainer"></div>
-
-    <h2 id="selectedCenterTitle">جدول دوام المركز</h2>
-
-    <!-- تنبيه المتأخرين -->
-    <div id="lateNoticeBox" class="late-box hidden">
-      <strong>⚠️ قائمة المتأخرين عن تسجيل الحضور (أكثر من 10 دقائق):</strong>
-      <div id="lateList" style="margin-top:8px;"></div>
-    </div>
-
-    <!-- جدول الحضور والانصراف للمركز -->
-    <div style="overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:5%;">#</th>
-            <th style="width:35%;">اسم الموظف</th>
-            <th style="width:15%;">الحضور</th>
-            <th style="width:15%;">الانصراف</th>
-            <th style="width:30%;">الإجراءات المتاحة</th>
-          </tr>
-        </thead>
-        <tbody id="employeeTableBody">
-          <tr><td colspan="5">جاري تحميل البيانات...</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <hr style="margin:20px 0;">
-    <h3>جدول أسماء الملزمين بالدوام</h3>
-    <div style="overflow-x:auto;">
-      <table>
-        <thead>
-          <tr>
-            <th>اسم الموظف</th>
-            <th>نوع الدوام</th>
-          </tr>
-        </thead>
-        <tbody id="employeeShiftList">
-          <tr><td colspan="2">جاري تحميل الجدول...</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <hr style="margin:20px 0;">
-    <h3>حالة طلبات الإجازات الخاصة بي وإلغاؤها</h3>
-    <label>ادخل اسمك لمتابعة طلباتك:</label>
-    <input type="text" id="empSearchName" placeholder="اكتب اسمك هنا..." oninput="loadEmployeeRequests()">
-    <div style="overflow-x:auto; margin-top:10px;">
-      <table>
-        <thead>
-          <tr>
-            <th>التاريخ</th>
-            <th>النوع</th>
-            <th>التفاصيل</th>
-            <th>الحالة</th>
-            <th>إجراء</th>
-          </tr>
-        </thead>
-        <tbody id="myLeaveRequestsList">
-          <tr><td colspan="5">اكتب اسمك بالأعلى لعرض طلباتك</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- واجهة الإدارة -->
-  <div id="adminSection" class="card hidden">
-    <h2>لوحة تحكم المشرف الإداري</h2>
+<div class="container">
+    <h1>جدول دوام</h1>
     
-    <div id="adminLoginBox">
-      <label>كلمة المرور:</label>
-      <input type="password" id="adminPass" placeholder="أدخل كلمة المرور">
-      <button onclick="loginAdmin()" style="margin-top:10px;">دخول</button>
+    <!-- شريط التنبيهات العامة -->
+    <div id="ticker" class="ticker">تنبيه عام: يرجى الالتزام بمواعيد الدوام المحددة وتأكيد الموقع الجغرافي عند البصمة.</div>
+
+    <!-- التنبيهات التلقائية والتجاوزات -->
+    <div class="card" id="alertsCard" style="display:none;">
+        <h3 style="color:var(--danger); margin-top:0;">تنبيهات التجاوزات والتأخير</h3>
+        <ul id="alertsList" style="color:var(--danger); font-weight:bold;"></ul>
     </div>
 
-    <div id="adminDashboard" class="hidden">
-      
-      <!-- ** الجديد: جدول متابعة حالة التسجيل اليومي الشامل للموظفين (خاص بالإدارة) ** -->
-      <div style="background: #ebf5fb; padding: 15px; border-radius: 8px; border: 1px solid #3498db; margin-bottom: 20px;">
-        <h3 style="margin-top:0; color:#2980b9;">📋 جدول حالة التسجيل لجميع الموظفين اليوم</h3>
-        <p style="font-size:12px; color:#555;">يعرض الموظفين المسجلين اليوم، والغير مسجلين، ويبرز المتأخرين باللون الأحمر.</p>
-        <div style="overflow-x:auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>المركز</th>
-                <th>اسم الموظف</th>
-                <th>وقت الحضور</th>
-                <th>الحالة</th>
-              </tr>
-            </thead>
-            <tbody id="adminDailyStatusBody">
-              <tr><td colspan="4">جاري تحليل حالة التسجيل اليومية...</td></tr>
-            </tbody>
-          </table>
+    <!-- أزرار التنقل بين المراكز واللوحات -->
+    <div style="margin-bottom: 15px; text-align: center;">
+        <button class="tab-btn active" onclick="switchView('attendance')">سجل الدوام</button>
+        <button class="tab-btn" onclick="switchView('leaves')">طلب إجازة</button>
+        <button class="tab-btn" onclick="switchView('admin')">لوحة التحكم للإشراف</button>
+    </div>
+
+    <!-- 1. قسم تسجيل الدوام والمتابعة -->
+    <div id="viewAttendance">
+        <div class="card">
+            <h3>اختر المركز الميداني</h3>
+            <select id="centerSelect" onchange="renderCenterData()">
+                <!-- سيتم ملء 6 مراكز ديناميكياً -->
+            </select>
+            <p><strong>الموقع المطلوب:</strong> <span id="centerCoords">-</span> | <strong>نصف القطر المسموح:</strong> <span id="centerRadius">-</span> متر</p>
+            <button onclick="getCurrentLocation()">تحديث موقعي الحالي (GPS)</button>
+            <p id="geoStatus" style="font-weight: bold;"></p>
         </div>
-      </div>
 
-      <!-- الإشعارات والتنبيهات -->
-      <h3>🔔 الإشعارات والتجاوزات الحديثة</h3>
-      <div id="adminNotifications" class="alert-box">لا توجد إشعارات جديدة حالياً</div>
-      <div id="adminAlertsContainer"></div>
+        <div class="card">
+            <h3>تسجيل الحضور والانصراف</h3>
+            <div id="employeeButtonsGrid" class="grid"></div>
+        </div>
 
-      <hr>
-      <h3>🔐 تغيير كلمة مرور الإدارة</h3>
-      <input type="password" id="newAdminPass" placeholder="كلمة المرور الجديدة...">
-      <button onclick="changeAdminPassword()" style="background:#8e44ad;">تحديث كلمة المرور</button>
-
-      <hr>
-      <h3>📢 إدارة التنبيهات العامة للموظفين</h3>
-      <input type="text" id="noticeText" placeholder="اكتب التنبيه المنشور هنا...">
-      <button onclick="saveNotice()">نشر التنبيه</button>
-      <div style="overflow-x:auto; margin-top:10px;">
-        <table>
-          <thead>
-            <tr>
-              <th>التنبيه المنشور حالياً</th>
-              <th>إجراء</th>
-            </tr>
-          </thead>
-          <tbody id="adminNoticeDisplay"></tbody>
-        </table>
-      </div>
-
-      <hr>
-      <h3>⚙️ تعديل أسماء مراكز العمل الستة</h3>
-      <div id="centerNamesForm" class="center-grid"></div>
-      <button onclick="saveCenterNames()">حفظ الأسماء الجديدة للمراكز</button>
-
-      <hr>
-      <h3>📍 تحديد الموقع والجغرافيا لكل مركز (تلقائي/يدوي)</h3>
-      <label>اختر المركز لتحديد/تعديل موقعه:</label>
-      <select id="adminCenterSelect" onchange="loadCenterGeoSettings()"></select>
-      
-      <div id="map"></div>
-      <p id="locationStatus" style="font-weight:bold; font-size:13px; color:#2c3e50;"></p>
-      <button onclick="captureCurrentLocation()" class="btn-warning">📍 استخدام موقعي الحالي على الخريطة تلقائياً</button>
-      
-      <label style="margin-top:10px; display:block;">نصف قطر دائرة العمل المسموح:</label>
-      <select id="geoRadius" onchange="updateCircleRadius()">
-        <option value="100">100 متر</option>
-        <option value="200">200 متر</option>
-        <option value="300">300 متر</option>
-        <option value="500">500 متر</option>
-        <option value="1000">1 كيلومتر (1000 متر)</option>
-      </select>
-      <button onclick="saveCenterGeoSettings()" style="margin-top:5px;">حفظ موقع ونطاق المركز المختار</button>
-
-      <hr>
-      <h3>👥 تعديل أسماء الموظفين (20 خانة لكل مركز)</h3>
-      <label>اختر المركز لتعديل قوائم أسماء موظفيه:</label>
-      <select id="adminCenterEmpSelect" onchange="loadCenterEmployeesForEdit()"></select>
-      <div id="employeeInputsContainer" style="margin-top:15px; display:grid; grid-template-columns: 1fr 1fr; gap:10px;"></div>
-      <button onclick="saveCenterEmployees()" style="margin-top:15px;">حفظ قائمة الموظفين للمركز</button>
-
-      <hr>
-      <h3>⏰ إعدادات وقت بدء الدوام المعتاد (حساب التأخير)</h3>
-      <div class="flex-group">
-        <label style="white-space:nowrap;">وقت بدء الدوام:</label>
-        <input type="time" id="workStartTime" value="08:00">
-        <button onclick="saveStartTime()" style="white-space:nowrap;">حفظ الوقت</button>
-      </div>
-
-      <hr>
-      <h3>📝 إدارة الملزمين بالدوام (إضافية)</h3>
-      <label>اسم الموظف:</label>
-      <input type="text" id="shiftEmpName" placeholder="اسم الموظف...">
-      <label>نوع الدوام:</label>
-      <select id="shiftType">
-        <option value="إداري">دوام إداري</option>
-        <option value="تجميعي">دوام تجميعي</option>
-      </select>
-      <button onclick="addShiftMember()">إضافة للموظفين الملزمين</button>
-      <div style="overflow-x:auto; margin-top:10px;">
-        <table>
-          <thead>
-            <tr>
-              <th>الموظف</th>
-              <th>نوع الدوام</th>
-              <th>إجراء</th>
-            </tr>
-          </thead>
-          <tbody id="adminShiftList"></tbody>
-        </table>
-      </div>
-
-      <hr>
-      <h3>📊 إدارة طلبات الإجازات (مقبول / مرفوض / حذف)</h3>
-      <div style="overflow-x:auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>الموظف</th>
-              <th>المركز</th>
-              <th>النوع</th>
-              <th>التاريخ</th>
-              <th>التفاصيل/السبب</th>
-              <th>الحالة الحالية</th>
-              <th>الإجراءات المتاحة</th>
-            </tr>
-          </thead>
-          <tbody id="adminLeavesTable"></tbody>
-        </table>
-      </div>
-
-      <hr>
-      <h3>📂 أرشيف جداول الدوام اليومية والشهري (31 يوماً) 📅</h3>
-      <p style="font-size:13px; color:#555;">تتم أرشفة السجلات اليومية تلقائياً للـ 31 يوماً الأخيرة مع إمكانية التصدير إلى ملفات خارجية.</p>
-      <div class="flex-group" style="margin-bottom:10px;">
-        <select id="archiveDateSelect" onchange="displaySelectedArchive()">
-          <option value="">اختر اليوم لعرض السجل الخاص به...</option>
-        </select>
-        <button onclick="manualSaveDailyArchive()" style="background:#27ae60; width:auto; white-space:nowrap;">💾 حفظ سجّل اليوم</button>
-      </div>
-      <div class="flex-group">
-        <button onclick="exportArchiveDayToExcel()" class="btn-excel">📊 تصدير سجل اليوم المختار</button>
-        <button onclick="exportFullArchiveToExcel()" class="btn-excel" style="background:#8e44ad;">📁 تصدير الأرشيف الشهري (31 يوماً)</button>
-      </div>
-      <div style="overflow-x:auto; margin-top:10px;">
-        <table id="archiveDisplayTable">
-          <thead>
-            <tr>
-              <th>الاسم</th>
-              <th>التاريخ</th>
-              <th>الحضور</th>
-              <th>الانصراف</th>
-            </tr>
-          </thead>
-          <tbody id="archiveDisplayList">
-            <tr><td colspan="4">اختر تاريخاً من القائمة لمشاهدة سجل الدوام الخاص به.</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <hr>
-      <h3>⚡ سجلات الحضور والانصراف المباشرة والتعديل</h3>
-      <button onclick="exportToExcel()" class="btn-excel">📥 تصدير سجلات اليوم الحالية (CSV)</button>
-      <input type="text" id="searchBox" onkeyup="filterTable()" placeholder="ابحث باسم الموظف في الجدول..." style="margin-top:5px;">
-      <div style="overflow-x:auto;">
-        <table id="adminTable">
-          <thead>
-            <tr>
-              <th>الاسم</th>
-              <th>التاريخ</th>
-              <th>الحضور</th>
-              <th>الانصراف</th>
-              <th>إجراءات الإدارة</th>
-            </tr>
-          </thead>
-          <tbody id="attendanceList"></tbody>
-        </table>
-      </div>
-
-      <button onclick="logoutAdmin()" class="btn-danger" style="margin-top:20px;">تسجيل خروج الإدارة</button>
+        <!-- جدول المتابعة الموحد لليوم -->
+        <div class="card">
+            <h3>جدول المتابعة الموحد لليوم</h3>
+            <p>وقت بدء الدوام المحدد: <strong id="displayWorkStart">08:00</strong></p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>الموظف</th>
+                        <th>المركز</th>
+                        <th>حضور</th>
+                        <th>انصراف</th>
+                        <th>الحالة</th>
+                        <th>إجراء الإدارة</th>
+                    </tr>
+                </thead>
+                <tbody id="liveStatusTable"></tbody>
+            </table>
+        </div>
     </div>
-  </div>
 
-  <!-- النافذة المنبثقة لطلب الإجازة -->
-  <div id="leaveModal" class="modal hidden">
-    <div class="modal-content">
-      <h3 id="leaveModalTitle">طلب إجازة للموظف</h3>
-      
-      <label>نوع الإجازة:</label>
-      <select id="modalLeaveType" onchange="toggleModalLeaveFields()">
-        <option value="full">إجازة يوم كامل</option>
-        <option value="hourly">إجازة ساعية</option>
-      </select>
+    <!-- 2. قسم الإجازات -->
+    <div id="viewLeaves" style="display:none;">
+        <div class="card">
+            <h3>تقديم طلب إجازة</h3>
+            <label>اسم الموظف</label>
+            <input type="text" id="leaveEmpName" placeholder="أدخل اسمك الكامل">
+            
+            <label>نوع الإجازة</label>
+            <select id="leaveType" onchange="toggleLeaveFields()">
+                <option value="full">يوم كامل</option>
+                <option value="hourly">ساعية</option>
+            </select>
 
-      <label>التاريخ:</label>
-      <input type="date" id="modalLeaveDate">
+            <div id="hourlyFields" style="display:none;">
+                <label>وقت البدء</label>
+                <input type="time" id="leaveStartTime">
+                <label>عدد الساعات</label>
+                <input type="number" id="leaveHours" min="1" max="8">
+            </div>
 
-      <div id="modalHourlyFields" class="hidden">
-        <label>وقت بدء الإجازة الساعية:</label>
-        <input type="time" id="modalLeaveStartTime">
-        <label>عدد الساعات المطلوبة:</label>
-        <input type="number" id="modalLeaveHours" placeholder="مثال: 2" min="1" max="8">
-      </div>
+            <label>سبب الإجازة / ملاحظات</label>
+            <textarea id="leaveReason" rows="3" placeholder="اكتب سبب طلب الإجازة هنا..."></textarea>
 
-      <label>السبب:</label>
-      <input type="text" id="modalLeaveReason" placeholder="سبب الطلب...">
+            <button class="success" onclick="submitLeave()">تقديم الطلب</button>
+        </div>
 
-      <div class="flex-group" style="margin-top:15px;">
-        <button onclick="submitLeaveFromModal()" class="btn-warning">إرسال الطلب</button>
-        <button onclick="closeLeaveModal()" class="btn-danger">إلغاء</button>
-      </div>
+        <div class="card">
+            <h3>سجل طلبات الإجازة الخاصة بي</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>الموظف</th>
+                        <th>النوع</th>
+                        <th>التفاصيل</th>
+                        <th>السبب</th>
+                        <th>الحالة</th>
+                        <th>إلغاء</th>
+                    </tr>
+                </thead>
+                <tbody id="myLeavesTable"></tbody>
+            </table>
+        </div>
     </div>
-  </div>
+
+    <!-- 3. لوحة التحكم للإشراف -->
+    <div id="viewAdmin" style="display:none;">
+        <div class="card" id="adminAuth">
+            <h3>تسجيل الدخول للإشراف</h3>
+            <input type="password" id="adminPassInput" placeholder="أدخل كلمة المرور">
+            <button onclick="loginAdmin()">دخول</button>
+        </div>
+
+        <div id="adminPanel" style="display:none;">
+            <!-- إعدادات العامة ووقت الدوام -->
+            <div class="card">
+                <h3>إعدادات النظام العامة</h3>
+                <label>وقت بدء الدوام المعتاد (لاحتساب التأخير):</label>
+                <input type="time" id="adminWorkStart" value="08:00">
+                
+                <label>تعديل شريط التنبيهات العام:</label>
+                <input type="text" id="adminTickerInput" placeholder="اكتب التنبيه هنا">
+                
+                <label>تغيير كلمة مرور الإدارة:</label>
+                <input type="password" id="newAdminPass" placeholder="كلمة المرور الجديدة">
+                <br><br>
+                <button class="success" onclick="saveAdminSettings()">حفظ الإعدادات العامة</button>
+            </div>
+
+            <!-- إعدادات المراكز والخريطة -->
+            <div class="card">
+                <h3>إدارة المراكز والنطاق الجغرافي (Leaflet Map)</h3>
+                <label>اختر المركز للتعديل:</label>
+                <select id="adminCenterSelect" onchange="loadAdminCenterDetails()">
+                    <!-- 6 مراكز -->
+                </select>
+                <label>اسم المركز:</label>
+                <input type="text" id="adminCenterName">
+                
+                <label>نصف قطر نطاق الدوام (متر):</label>
+                <select id="adminCenterRadius">
+                    <option value="100">100 متر</option>
+                    <option value="200">200 متر</option>
+                    <option value="300">300 متر</option>
+                    <option value="500">500 متر</option>
+                    <option value="1000">1000 متر</option>
+                </select>
+
+                <p>حدد موقع المركز بالنقر على الخريطة:</p>
+                <div id="map"></div>
+                
+                <button class="success" onclick="saveCenterSettings()">حفظ إعدادات المركز</button>
+            </div>
+
+            <!-- إدارة الموظفين الـ 20 لكل مركز -->
+            <div class="card">
+                <h3>إدارة الموظفين (20 موظف لكل مركز)</h3>
+                <label>اختر المركز:</label>
+                <select id="adminEmpCenterSelect" onchange="loadAdminEmpList()">
+                    <!-- 6 مراكز -->
+                </select>
+                <div id="empInputsContainer" class="grid"></div>
+                <br>
+                <button class="success" onclick="saveEmployees()">حفظ قائمة الأسماء</button>
+            </div>
+
+            <!-- إدارة الإجازات للإشراف -->
+            <div class="card">
+                <h3>طلبات الإجازات للإشراف</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الموظف</th>
+                            <th>النوع</th>
+                            <th>التفاصيل</th>
+                            <th>السبب</th>
+                            <th>الحالة</th>
+                            <th>إجراء الإدارة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminLeavesTable"></tbody>
+                </table>
+            </div>
+
+            <!-- الأرشيف والتصدير -->
+            <div class="card">
+                <h3>الأرشيف الشهري والتصدير (CSV)</h3>
+                <button onclick="exportCurrentDayCSV()">تصدير سجل اليوم الحالي (Excel/CSV)</button>
+                <button onclick="exportMonthlyCSV()">تصدير الأرشيف الشهري الكامل (31 يوم)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leaflet JS Maps -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-  const firebaseConfig = {
-    databaseURL: "https://companyattendance-36adf-default-rtdb.firebaseio.com/"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
-
-  let map, marker, circle;
-  let activeCenterIndex = 1;
-  let selectedLat = 33.5138, selectedLon = 36.2765;
-  let selectedEmpForLeave = { name: '', centerId: 1 };
-  let currentAdminPassword = "admin123";
-  let defaultCenterNames = { 1: "المركز الرئيسي", 2: "مركـز الفرع 2", 3: "مركـز الفرع 3", 4: "مركـز الفرع 4", 5: "مركـز الفرع 5", 6: "مركـز الفرع 6" };
-  let currentCenterNames = {...defaultCenterNames};
-  let workStartTime = "08:00";
-
-  window.onload = function() {
-    loadAdminPassword();
-    loadCenterNames();
-    loadStartTime();
-    listenToNotice();
-    listenToShifts();
-    listenToLeaves();
-    listenToOverruns();
-    listenToAttendanceDirect();
-    listenToAdminDailyStatus();
-  };
-
-  function switchRole(role) {
-    if(role === 'employee') {
-      document.getElementById("employeeSection").classList.remove("hidden");
-      document.getElementById("adminSection").classList.add("hidden");
-      document.getElementById("tabEmp").classList.add("btn-warning");
-      document.getElementById("tabAdm").classList.remove("btn-warning");
-    } else {
-      document.getElementById("employeeSection").classList.add("hidden");
-      document.getElementById("adminSection").classList.remove("hidden");
-      document.getElementById("tabAdm").classList.add("btn-warning");
-      document.getElementById("tabEmp").classList.remove("btn-warning");
-    }
-  }
-
-  function loadAdminPassword() {
-    db.ref("settings/adminPassword").on("value", (snap) => {
-      if(snap.exists()) currentAdminPassword = snap.val();
-    });
-  }
-
-  function changeAdminPassword() {
-    const newPass = document.getElementById("newAdminPass").value.trim();
-    if(!newPass) { alert("الرجاء إدخال كلمة المرور الجديدة."); return; }
-    db.ref("settings/adminPassword").set(newPass, (err) => {
-      if(!err) { alert("تم تغيير كلمة مرور الإدارة بنجاح!"); document.getElementById("newAdminPass").value = ""; }
-    });
-  }
-
-  function loadCenterNames() {
-    db.ref("settings/centerNames").on("value", (snap) => {
-      if(snap.exists()) currentCenterNames = snap.val();
-      renderCenterButtons();
-      renderAdminCenterSelects();
-      renderCenterNamesForm();
-      selectCenter(activeCenterIndex);
-    });
-  }
-
-  function renderCenterButtons() {
-    const container = document.getElementById("centersButtonsContainer");
-    container.innerHTML = "";
-    for(let i=1; i<=6; i++) {
-      const btn = document.createElement("button");
-      btn.className = `center-btn ${i === activeCenterIndex ? 'active' : ''}`;
-      btn.innerText = currentCenterNames[i] || `المركز ${i}`;
-      btn.onclick = () => selectCenter(i);
-      container.appendChild(btn);
-    }
-  }
-
-  function renderAdminCenterSelects() {
-    const s1 = document.getElementById("adminCenterSelect");
-    const s2 = document.getElementById("adminCenterEmpSelect");
-    s1.innerHTML = ""; s2.innerHTML = "";
-    for(let i=1; i<=6; i++) {
-      const name = currentCenterNames[i] || `المركز ${i}`;
-      s1.innerHTML += `<option value="${i}">${name}</option>`;
-      s2.innerHTML += `<option value="${i}">${name}</option>`;
-    }
-  }
-
-  function renderCenterNamesForm() {
-    const container = document.getElementById("centerNamesForm");
-    container.innerHTML = "";
-    for(let i=1; i<=6; i++) {
-      container.innerHTML += `
-        <div>
-          <label>اسم المركز ${i}:</label>
-          <input type="text" id="centerNameInput_${i}" value="${currentCenterNames[i] || ''}">
-        </div>
-      `;
-    }
-  }
-
-  function saveCenterNames() {
-    let updated = {};
-    for(let i=1; i<=6; i++) {
-      const val = document.getElementById(`centerNameInput_${i}`).value.trim();
-      updated[i] = val || `المركز ${i}`;
-    }
-    db.ref("settings/centerNames").set(updated, (err) => {
-      if(!err) alert("تم حفظ أسماء المراكز بنجاح!");
-    });
-  }
-
-  function selectCenter(index) {
-    activeCenterIndex = index;
-    renderCenterButtons();
-    document.getElementById("selectedCenterTitle").innerText = `جدول دوام: ${currentCenterNames[index]}`;
-    loadCenterTable(index);
-  }
-
-  function loadCenterTable(centerId) {
-    const tbody = document.getElementById("employeeTableBody");
-    tbody.innerHTML = '<tr><td colspan="5">جاري التحميل...</td></tr>';
-
-    db.ref(`centers/${centerId}/employees`).on("value", (empSnap) => {
-      const employees = empSnap.val() || Array(20).fill("");
-      
-      db.ref(`attendance/${getTodayDate()}/${centerId}`).on("value", (attSnap) => {
-        const attendance = attSnap.val() || {};
-        tbody.innerHTML = "";
-        
-        let lateEmployees = [];
-        const now = new Date();
-        const [startH, startM] = workStartTime.split(':').map(Number);
-        const limitTime = new Date();
-        limitTime.setHours(startH, startM + 10, 0);
-
-        for(let i=0; i<20; i++) {
-          const empName = employees[i] || `موظف ${i+1}`;
-          const record = attendance[i] || {};
-          const checkInTime = record.checkIn || "-";
-          const checkOutTime = record.checkOut || "-";
-
-          let isLate = false;
-          if(employees[i] && checkInTime === "-" && now > limitTime) {
-            isLate = true;
-            lateEmployees.push(empName);
-          }
-
-          tbody.innerHTML += `
-            <tr>
-              <td>${i+1}</td>
-              <td style="text-align:right; font-weight:bold; ${isLate ? 'color:red;' : ''}">
-                ${empName} ${isLate ? '⚠️ (متأخر)' : ''}
-              </td>
-              <td style="color:green; font-weight:bold;">${checkInTime}</td>
-              <td style="color:orange; font-weight:bold;">${checkOutTime}</td>
-              <td>
-                <div style="display:flex; justify-content:center;">
-                  <button onclick="recordAttendance(${centerId}, ${i}, '${empName}', 'checkIn')" class="btn-action">حضور ☀️</button>
-                  <button onclick="recordAttendance(${centerId}, ${i}, '${empName}', 'checkOut')" class="btn-action btn-warning">انصراف 🌙</button>
-                  <button onclick="openLeaveModal('${empName}', ${centerId})" class="btn-action btn-excel">إجازة 📝</button>
-                </div>
-              </td>
-            </tr>
-          `;
-        }
-
-        const lateBox = document.getElementById("lateNoticeBox");
-        const lateList = document.getElementById("lateList");
-        if(lateEmployees.length > 0) {
-          lateBox.classList.remove("hidden");
-          lateList.innerHTML = lateEmployees.map(name => `<span class="late-user">${name}</span>`).join(" ");
-        } else {
-          lateBox.classList.add("hidden");
-        }
-      });
-    });
-  }
-
-  /* --- تابع متابعة جدول التسجيل اليومي للإدارة --- */
-  function listenToAdminDailyStatus() {
-    const today = getTodayDate();
-    
-    db.ref("centers").on("value", (centersSnap) => {
-      db.ref(`attendance/${today}`).on("value", (attSnap) => {
-        const tbody = document.getElementById("adminDailyStatusBody");
-        tbody.innerHTML = "";
-        
-        const allCentersData = centersSnap.val() || {};
-        const todayAttendance = attSnap.val() || {};
-        
-        let hasData = false;
-
-        for(let centerId = 1; centerId <= 6; centerId++) {
-          const centerName = currentCenterNames[centerId] || `مركـز ${centerId}`;
-          const empList = (allCentersData[centerId] && allCentersData[centerId].employees) ? allCentersData[centerId].employees : [];
-          const centerAtt = todayAttendance[centerId] || {};
-
-          for(let i = 0; i < empList.length; i++) {
-            const empName = empList[i];
-            if(empName && empName.trim() !== "" && !empName.includes("موظف ")) {
-              hasData = true;
-              const rec = centerAtt[i] || {};
-              const checkInTime = rec.checkIn || "-";
-              
-              let statusText = "لم يسجل بعد ⏳";
-              let statusClass = "status-absent";
-
-              if(checkInTime !== "-") {
-                // التأكد من التأخير
-                let isLate = checkIfTimeIsLate(checkInTime);
-                if(isLate) {
-                  statusText = "سجّل متأخراً ⚠️";
-                  statusClass = "status-late";
-                } else {
-                  statusText = "سجّل بوقت منظم ✅";
-                  statusClass = "status-on-time";
-                }
-              }
-
-              tbody.innerHTML += `
-                <tr>
-                  <td><b>${centerName}</b></td>
-                  <td>${empName}</td>
-                  <td>${checkInTime}</td>
-                  <td class="${statusClass}">${statusText}</td>
-                </tr>
-              `;
-            }
-          }
-        }
-
-        if(!hasData) {
-          tbody.innerHTML = `<tr><td colspan="4">لا يجد أسماء موظفين مضافة في المراكز حتى الآن</td></tr>`;
-        }
-      });
-    });
-  }
-
-  function checkIfTimeIsLate(timeStr) {
-    if(!timeStr || timeStr === "-") return false;
-    try {
-      const [startH, startM] = workStartTime.split(':').map(Number);
-      // معالجة الوقت إذا كان بصيغة AM/PM أو 24 ساعة
-      let checkDate = new Date();
-      let parts = timeStr.split(" ");
-      let timeParts = parts[0].split(":");
-      let h = parseInt(timeParts[0]);
-      let m = parseInt(timeParts[1]);
-
-      if(parts[1]) {
-        if(parts[1].includes("م") || parts[1].toLowerCase().includes("pm")) {
-          if(h < 12) h += 12;
-        } else if(parts[1].includes("ص") || parts[1].toLowerCase().includes("am")) {
-          if(h === 12) h = 0;
-        }
-      }
-
-      let startMinutes = startH * 60 + startM + 10; // 10 دقائق سماح
-      let actualMinutes = h * 60 + m;
-
-      return actualMinutes > startMinutes;
-    } catch(e) {
-      return false;
-    }
-  }
-
-  function recordAttendance(centerId, empIndex, empName, type) {
-    if(!empName || empName.includes("موظف ")) {
-      alert("يرجى تحديد اسم الموظف أولاً من لوحة تحكم المشرف!");
-      return;
-    }
-
-    db.ref(`settings/geoFence/${centerId}`).once("value", (geoSnap) => {
-      const geo = geoSnap.val();
-      if(!geo || !geo.lat) {
-        alert("لم يقم المشرف بتحديد موقع هذا المركز على الخريطة بعد!");
-        return;
-      }
-
-      if(!navigator.geolocation) {
-        alert("متصفحك لا يدعم تحديد الموقع الجغرافي GPS");
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const dist = calculateDistance(pos.coords.latitude, pos.coords.longitude, geo.lat, geo.lon);
-        if(dist > geo.radius) {
-          alert(`عذراً، أنت خارج نطاق العمل المسموح لـ (${currentCenterNames[centerId]}).\nالمسافة عن المركز: ${Math.round(dist)} متر (الحد المسموح: ${geo.radius} متر).`);
-          checkAndTriggerOverrun(empName, type, true);
-          return;
-        }
-
-        const today = getTodayDate();
-        const timeNow = new Date().toLocaleTimeString("ar-EG");
-        const ref = db.ref(`attendance/${today}/${centerId}/${empIndex}`);
-
-        db.ref("leaveRequests").once("value", (leaveSnap) => {
-          let isBlocked = false;
-          let hourlyLeaveInfo = null;
-
-          leaveSnap.forEach((child) => {
-            const l = child.val();
-            if(l.name === empName && l.date === today && l.status === "approved") {
-              if(l.type === 'full') isBlocked = true;
-              else if(l.type === 'hourly') hourlyLeaveInfo = l;
-            }
-          });
-
-          if(isBlocked) {
-            alert("عذراً، لديك إجازة يوم كامل معتمدة اليوم ولن يتم تسجيل الدوام.");
-            return;
-          }
-
-          ref.once("value", (snap) => {
-            const data = snap.val() || {};
-            if(type === 'checkIn') {
-              if(data.checkIn) { alert("تم تسجيل الحضور مسبقاً اليوم!"); return; }
-              ref.update({ name: empName, checkIn: timeNow, checkOut: "-", date: today, centerId: centerId });
-              db.ref("attendanceDirect").push({ name: empName, date: today, checkIn: timeNow, checkOut: "-" });
-              alert(`تم تسجيل حضور ${empName} بنجاح في ${timeNow}`);
-              autoSyncDailyArchive();
-            } else {
-              if(!data.checkIn) { alert("يجب تسجيل الحضور صباحاً أولاً!"); return; }
-              if(data.checkOut && data.checkOut !== "-") { alert("تم تسجيل الانصراف مسبقاً!"); return; }
-              ref.update({ checkOut: timeNow });
-              
-              db.ref("attendanceDirect").once("value", (dSnap) => {
-                dSnap.forEach((c) => {
-                  if(c.val().name === empName && c.val().date === today) {
-                    db.ref(`attendanceDirect/${c.key}`).update({ checkOut: timeNow });
-                  }
-                });
-              });
-
-              alert(`تم تسجيل انصراف ${empName} بنجاح في ${timeNow}`);
-              autoSyncDailyArchive();
-
-              if(hourlyLeaveInfo) {
-                const timeNowStr = new Date().toLocaleTimeString("ar-EG", {hour12: false});
-                const [startH, startM] = hourlyLeaveInfo.startTime.split(':').map(Number);
-                const totalAllowedMinutes = startH * 60 + startM + (hourlyLeaveInfo.hours * 60);
-                const [outH, outM] = timeNowStr.split(':').map(Number);
-                const actualOutMinutes = outH * 60 + outM;
-
-                if(actualOutMinutes > totalAllowedMinutes) {
-                  const excess = actualOutMinutes - totalAllowedMinutes;
-                  db.ref("overruns").push({
-                    name: empName, date: today,
-                    message: `الموظف ${empName} تأخر عن العودة بمقدار ${excess} دقيقة عن الإجازة الساعية.`
-                  });
-                }
-              }
-            }
-          });
-        });
-
-      }, () => alert("فشل تحديد الموقع الجغرافي. تأكد من تفعيل الـ GPS والسماح للمتصفح."));
-    });
-  }
-
-  function checkAndTriggerOverrun(name, type, isOutside) {
-    if(type === 'checkOut' && isOutside) {
-      db.ref("overruns").push({
-        name: name, date: getTodayDate(),
-        message: `الموظف ${name} حاول تسجيل الانصراف من خارج نطاق العمل المسموح!`
-      });
-    }
-  }
-
-  function openLeaveModal(empName, centerId) {
-    selectedEmpForLeave = { name: empName, centerId: centerId };
-    document.getElementById("leaveModalTitle").innerText = `طلب إجازة لـ: ${empName}`;
-    document.getElementById("modalLeaveDate").value = getTodayDate();
-    document.getElementById("leaveModal").classList.remove("hidden");
-  }
-
-  function closeLeaveModal() {
-    document.getElementById("leaveModal").classList.add("hidden");
-  }
-
-  function toggleModalLeaveFields() {
-    const type = document.getElementById("modalLeaveType").value;
-    if(type === 'hourly') document.getElementById("modalHourlyFields").classList.remove("hidden");
-    else document.getElementById("modalHourlyFields").classList.add("hidden");
-  }
-
-  function submitLeaveFromModal() {
-    const type = document.getElementById("modalLeaveType").value;
-    const date = document.getElementById("modalLeaveDate").value;
-    const reason = document.getElementById("modalLeaveReason").value;
-
-    if(!date) { alert("الرجاء اختيار التاريخ"); return; }
-
-    let reqData = {
-      name: selectedEmpForLeave.name,
-      centerId: selectedEmpForLeave.centerId,
-      centerName: currentCenterNames[selectedEmpForLeave.centerId],
-      type: type,
-      date: date,
-      reason: reason,
-      status: "pending",
-      timestamp: Date.now()
+    // System Data Structures
+    let defaultData = {
+        adminPass: "1234",
+        workStart: "08:00",
+        ticker: "تنبيه عام: يرجى الالتزام بمواعيد الدوام المحددة وتأكيد الموقع الجغرافي عند البصمة.",
+        centers: Array.from({length: 6}, (_, i) => ({
+            id: i,
+            name: `مركز العمل ${i + 1}`,
+            lat: 33.5138 + (i * 0.005),
+            lng: 36.2765 + (i * 0.005),
+            radius: 300,
+            employees: Array.from({length: 20}, (_, j) => `موظف ${j + 1}`)
+        })),
+        attendance: {}, // Date string -> { empId/Name: { checkIn, checkOut, centerId, status } }
+        leaves: [] // List of leaves
     };
 
-    if(type === 'hourly') {
-      const st = document.getElementById("modalLeaveStartTime").value;
-      const hrs = document.getElementById("modalLeaveHours").value;
-      if(!st || !hrs) { alert("أدخل وقت البدء وعدد الساعات"); return; }
-      reqData.startTime = st; reqData.hours = parseFloat(hrs);
+    let appData = JSON.parse(localStorage.getItem('jadwal_dawam_data')) || defaultData;
+
+    function saveData() {
+        localStorage.setItem('jadwal_dawam_data', JSON.stringify(appData));
+        renderAll();
     }
 
-    db.ref("leaveRequests").push(reqData, (err) => {
-      if(!err) {
-        alert("تم إرسال طلب الإجازة بنجاح!");
-        closeLeaveModal();
-        loadEmployeeRequests();
-      }
-    });
-  }
+    let userLocation = null;
+    let map, marker, circle;
 
-  function loadEmployeeRequests() {
-    const name = document.getElementById("empSearchName").value.trim();
-    const list = document.getElementById("myLeaveRequestsList");
-    if(!name) {
-      list.innerHTML = `<tr><td colspan="5">اكتب اسمك بالأعلى لعرض طلباتك</td></tr>`;
-      return;
+    function getTodayKey() {
+        return new Date().toISOString().split('T')[0];
     }
 
-    db.ref("leaveRequests").once("value", (snapshot) => {
-      list.innerHTML = "";
-      let found = false;
-      snapshot.forEach((child) => {
-        const key = child.key;
-        const l = child.val();
-        if(l.name === name) {
-          found = true;
-          let details = l.type === 'hourly' ? `من ${l.startTime} (${l.hours} ساعات)` : `يوم كامل`;
-          let statusText = l.status === "pending" ? "قيد الانتظار ⏳" : (l.status === "approved" ? "مقبولة ✅" : "مرفوضة ❌");
-          let statusColor = l.status === "pending" ? "orange" : (l.status === "approved" ? "green" : "red");
-          let actionBtn = l.status === "pending" ? `<button onclick="cancelMyLeave('${key}')" class="btn-danger" style="padding:4px 8px; font-size:11px;">إلغاء الطلب</button>` : '-';
-
-          list.innerHTML += `
-            <tr>
-              <td>${l.date}</td>
-              <td>${l.type === 'full' ? 'يوم كامل' : 'ساعية'}</td>
-              <td>${details}</td>
-              <td style="color:${statusColor}; font-weight:bold;">${statusText}</td>
-              <td>${actionBtn}</td>
-            </tr>
-          `;
+    // Init App
+    window.onload = function() {
+        if (!appData.attendance[getTodayKey()]) {
+            appData.attendance[getTodayKey()] = {};
         }
-      });
-      if(!found) list.innerHTML = `<tr><td colspan="5">لا توجد طلبات إجازة بهذا الاسم</td></tr>`;
-    });
-  }
+        populateCenterDropdowns();
+        renderAll();
+    };
 
-  function cancelMyLeave(key) {
-    if(confirm("هل أنت متأكد من إلغاء الطلب؟")) {
-      db.ref("leaveRequests/" + key).remove();
-      alert("تم إلغاء الطلب");
-      loadEmployeeRequests();
-    }
-  }
-
-  function listenToLeaves() {
-    db.ref("leaveRequests").on("value", (snap) => {
-      const container = document.getElementById("adminNotifications");
-      const tbody = document.getElementById("adminLeavesTable");
-      tbody.innerHTML = "";
-      
-      let pendingCount = 0;
-      snap.forEach((child) => {
-        const k = child.key;
-        const l = child.val();
-        if(l.status === 'pending') pendingCount++;
-
-        let details = l.type === 'hourly' ? `ساعية (${l.startTime} - ${l.hours} س)` : `يوم كامل`;
-        let statusText = l.status === "pending" ? "قيد الانتظار ⏳" : (l.status === "approved" ? "مقبول ✅" : "مرفوض ❌");
-
-        tbody.innerHTML += `
-          <tr>
-            <td><b>${l.name}</b></td>
-            <td>${l.centerName || '-'}</td>
-            <td>${l.type === 'full' ? 'يوم كامل' : 'ساعية'}</td>
-            <td>${l.date}</td>
-            <td>${details} / ${l.reason || '-'}</td>
-            <td><b>${statusText}</b></td>
-            <td>
-              <button onclick="updateLeaveStatus('${k}', 'approved')" class="btn-action">قبول</button>
-              <button onclick="updateLeaveStatus('${k}', 'rejected')" class="btn-action btn-warning">رفض</button>
-              <button onclick="deleteLeaveAdmin('${k}')" class="btn-action btn-danger">حذف</button>
-            </td>
-          </tr>
-        `;
-      });
-
-      if(pendingCount > 0) {
-        container.innerHTML = `🔔 <strong>تنبيه إجازات:</strong> لديك (${pendingCount}) طلبات إجازة جديدة بانتظار المراجعة!`;
-        container.style.background = "#fff3cd";
-      } else {
-        container.innerHTML = "لا توجد طلبات إجازة معلقة حالياً";
-        container.style.background = "#e8f8f5";
-      }
-    });
-  }
-
-  function updateLeaveStatus(key, status) {
-    db.ref(`leaveRequests/${key}`).update({ status: status });
-  }
-
-  function deleteLeaveAdmin(key) {
-    if(confirm("هل أنت متأكد من حذف طلب الإجازة هذا نهائياً؟")) {
-      db.ref("leaveRequests/" + key).remove();
-    }
-  }
-
-  function listenToNotice() {
-    db.ref("settings/notice").on("value", (snapshot) => {
-      const notice = snapshot.val();
-      const container = document.getElementById("generalNoticeContainer");
-      const adminNoticeDisplay = document.getElementById("adminNoticeDisplay");
-      
-      if(notice) {
-        container.innerHTML = `<div class="alert-box"><span><strong>تنبيه الإدارة:</strong> ${notice}</span></div>`;
-        adminNoticeDisplay.innerHTML = `<tr><td>${notice}</td><td><button onclick="deleteNotice()" class="btn-danger" style="padding:5px 10px; font-size:12px;">حذف</button></td></tr>`;
-      } else {
-        container.innerHTML = "";
-        adminNoticeDisplay.innerHTML = `<tr><td colspan="2">لا توجد تنبيهات منشورة حالياً</td></tr>`;
-      }
-    });
-  }
-
-  function saveNotice() {
-    const text = document.getElementById("noticeText").value.trim();
-    if(!text) { alert("اكتب نص التنبيه أولاً"); return; }
-    db.ref("settings/notice").set(text);
-    alert("تم نشر التنبيه بنجاح");
-    document.getElementById("noticeText").value = "";
-  }
-
-  function deleteNotice() {
-    if(confirm("هل أنت متأكد من حذف التنبيه؟")) {
-      db.ref("settings/notice").remove();
-    }
-  }
-
-  function listenToShifts() {
-    db.ref("shifts").on("value", (snapshot) => {
-      const empList = document.getElementById("employeeShiftList");
-      const admList = document.getElementById("adminShiftList");
-      empList.innerHTML = ""; admList.innerHTML = "";
-      
-      let count = 0;
-      snapshot.forEach((child) => {
-        count++;
-        const key = child.key; const s = child.val();
-        empList.innerHTML += `<tr><td>${s.name}</td><td>${s.type}</td></tr>`;
-        admList.innerHTML += `<tr><td>${s.name}</td><td>${s.type}</td><td><button onclick="deleteShiftMember('${key}')" class="btn-danger" style="padding:5px 10px; font-size:12px;">حذف</button></td></tr>`;
-      });
-
-      if(count === 0) {
-        empList.innerHTML = `<tr><td colspan="2">لا توجد أسماء مسجلة حالياً</td></tr>`;
-        admList.innerHTML = `<tr><td colspan="3">لا توجد أسماء مسجلة حالياً</td></tr>`;
-      }
-    });
-  }
-
-  function addShiftMember() {
-    const name = document.getElementById("shiftEmpName").value.trim();
-    const type = document.getElementById("shiftType").value;
-    if(!name) { alert("أدخل اسم الموظف"); return; }
-    db.ref("shifts").push({ name: name, type: type });
-    document.getElementById("shiftEmpName").value = "";
-  }
-
-  function deleteShiftMember(key) {
-    db.ref("shifts/" + key).remove();
-  }
-
-  function listenToOverruns() {
-    db.ref("overruns").on("value", (snapshot) => {
-      const container = document.getElementById("adminAlertsContainer");
-      container.innerHTML = "";
-      snapshot.forEach((child) => {
-        const o = child.val();
-        container.innerHTML += `<div class="warning-box">⚠️ تنبيه: ${o.message} (تاريخ: ${o.date})</div>`;
-      });
-    });
-  }
-
-  function loadCenterGeoSettings() {
-    const cId = document.getElementById("adminCenterSelect").value;
-    db.ref(`settings/geoFence/${cId}`).once("value", (snap) => {
-      const geo = snap.val() || { lat: 33.5138, lon: 36.2765, radius: 200 };
-      selectedLat = geo.lat; selectedLon = geo.lon;
-      document.getElementById("geoRadius").value = geo.radius || 200;
-      initMap(selectedLat, selectedLon, parseInt(document.getElementById("geoRadius").value));
-    });
-  }
-
-  function initMap(lat, lon, radius) {
-    if(!map) {
-      map = L.map('map').setView([lat, lon], 15);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-      marker = L.marker([lat, lon], { draggable: true }).addTo(map);
-      circle = L.circle([lat, lon], { radius: radius, color: 'red' }).addTo(map);
-
-      marker.on('dragend', function() {
-        const pos = marker.getLatLng();
-        selectedLat = pos.lat; selectedLon = pos.lng;
-        circle.setLatLng(pos);
-        updateLocStatus();
-      });
-
-      map.on('click', function(e) {
-        selectedLat = e.latlng.lat; selectedLon = e.latlng.lng;
-        marker.setLatLng(e.latlng);
-        circle.setLatLng(e.latlng);
-        updateLocStatus();
-      });
-    } else {
-      map.setView([lat, lon], 15);
-      marker.setLatLng([lat, lon]);
-      circle.setLatLng([lat, lon]);
-      circle.setRadius(radius);
-    }
-    updateLocStatus();
-  }
-
-  function updateCircleRadius() {
-    const rad = parseInt(document.getElementById("geoRadius").value);
-    if(circle) circle.setRadius(rad);
-  }
-
-  function updateLocStatus() {
-    document.getElementById("locationStatus").innerText = `الإحداثيات المختارة: (${selectedLat.toFixed(5)}, ${selectedLon.toFixed(5)})`;
-  }
-
-  function captureCurrentLocation() {
-    if(navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        selectedLat = pos.coords.latitude; selectedLon = pos.coords.longitude;
-        marker.setLatLng([selectedLat, selectedLon]);
-        circle.setLatLng([selectedLat, selectedLon]);
-        map.setView([selectedLat, selectedLon], 16);
-        updateLocStatus();
-        alert("تم تحديث خريطة المركز لموقعك الحالي بنجاح!");
-      });
-    }
-  }
-
-  function saveCenterGeoSettings() {
-    const cId = document.getElementById("adminCenterSelect").value;
-    const rad = parseInt(document.getElementById("geoRadius").value);
-    db.ref(`settings/geoFence/${cId}`).set({
-      lat: selectedLat, lon: selectedLon, radius: rad
-    }, (err) => {
-      if(!err) alert(`تم حفظ إعدادات خريطة ونطاق (${currentCenterNames[cId]}) بنجاح!`);
-    });
-  }
-
-  function loadCenterEmployeesForEdit() {
-    const cId = document.getElementById("adminCenterEmpSelect").value;
-    const container = document.getElementById("employeeInputsContainer");
-    container.innerHTML = "";
-
-    db.ref(`centers/${cId}/employees`).once("value", (snap) => {
-      const list = snap.val() || [];
-      for(let i=0; i<20; i++) {
-        container.innerHTML += `
-          <div>
-            <label style="font-size:12px;">الموظف ${i+1}:</label>
-            <input type="text" id="empInput_${i}" value="${list[i] || ''}" placeholder="اسم الموظف الثلاثي">
-          </div>
-        `;
-      }
-    });
-  }
-
-  function saveCenterEmployees() {
-    const cId = document.getElementById("adminCenterEmpSelect").value;
-    let employees = [];
-    for(let i=0; i<20; i++) {
-      employees.push(document.getElementById(`empInput_${i}`).value.trim());
-    }
-    db.ref(`centers/${cId}/employees`).set(employees, (err) => {
-      if(!err) alert("تم تحديث وحفظ أسماء الموظفين لهذا المركز بنجاح!");
-    });
-  }
-
-  function saveStartTime() {
-    const val = document.getElementById("workStartTime").value;
-    db.ref("settings/workStartTime").set(val, (err) => {
-      if(!err) alert("تم تحديث وقت بدء الدوام الجدبد!");
-    });
-  }
-
-  function loadStartTime() {
-    db.ref("settings/workStartTime").on("value", (snap) => {
-      if(snap.exists()) {
-        workStartTime = snap.val();
-        document.getElementById("workStartTime").value = workStartTime;
-      }
-    });
-  }
-
-  function loginAdmin() {
-    const pass = document.getElementById("adminPass").value;
-    if(pass === currentAdminPassword) {
-      document.getElementById("adminLoginBox").classList.add("hidden");
-      document.getElementById("adminDashboard").classList.remove("hidden");
-      setTimeout(() => {
-        loadCenterGeoSettings();
-        loadCenterEmployeesForEdit();
-      }, 300);
-    } else alert("كلمة المرور غير صحيحة!");
-  }
-
-  function logoutAdmin() {
-    document.getElementById("adminPass").value = "";
-    document.getElementById("adminLoginBox").classList.remove("hidden");
-    document.getElementById("adminDashboard").classList.add("hidden");
-  }
-
-  function getTodayDate() {
-    return new Date().toISOString().split('T')[0];
-  }
-
-  function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
-  }
-
-  function listenToAttendanceDirect() {
-    db.ref("attendanceDirect").on("value", (snapshot) => {
-      const list = document.getElementById("attendanceList");
-      list.innerHTML = "";
-      snapshot.forEach((child) => {
-        const key = child.key;
-        const data = child.val();
-        list.innerHTML += `
-          <tr>
-            <td>${data.name}</td>
-            <td>${data.date}</td>
-            <td><input type="text" value="${data.checkIn || '-'}" id="in_${key}" style="width:90px; text-align:center;"></td>
-            <td><input type="text" value="${data.checkOut || '-'}" id="out_${key}" style="width:90px; text-align:center;"></td>
-            <td>
-              <button onclick="updateRecord('${key}')" class="btn-action">تعديل</button>
-              <button onclick="deleteRecord('${key}')" class="btn-action btn-danger">حذف</button>
-            </td>
-          </tr>
-        `;
-      });
-      autoSyncDailyArchive();
-    });
-  }
-
-  function updateRecord(key) {
-    const newIn = document.getElementById("in_" + key).value;
-    const newOut = document.getElementById("out_" + key).value;
-    db.ref("attendanceDirect/" + key).update({ checkIn: newIn, checkOut: newOut });
-    alert("تم التعديل بنجاح");
-  }
-
-  function deleteRecord(key) {
-    if(confirm("هل أنت متأكد من حذف هذا السجل؟")) {
-      db.ref("attendanceDirect/" + key).remove();
-    }
-  }
-
-  function filterTable() {
-    const input = document.getElementById("searchBox").value.toLowerCase();
-    const rows = document.getElementById("adminTable").getElementsByTagName("tr");
-    for (let i = 0; i < rows.length; i++) {
-      const td = rows[i].getElementsByTagName("td")[0];
-      if (td) {
-        const text = td.textContent || td.innerText;
-        rows[i].style.display = text.toLowerCase().indexOf(input) > -1 ? "" : "none";
-      }
-    }
-  }
-
-  function exportToExcel() {
-    db.ref("attendanceDirect").once("value", (snapshot) => {
-      let csvContent = "\uFEFFاسم الموظف,التاريخ,وقت الحضور,وقت الانصراف\n";
-      snapshot.forEach((child) => {
-        const data = child.val();
-        csvContent += `"${data.name}","${data.date}","${data.checkIn || '-'}","${data.checkOut || '-'}"\n`;
-      });
-      downloadCSV(csvContent, `سجلات_الدوام_${getTodayDate()}.csv`);
-    });
-  }
-
-  function autoSyncDailyArchive() {
-    const today = getTodayDate();
-    db.ref("attendanceDirect").once("value", (snapshot) => {
-      let todayRecords = [];
-      snapshot.forEach((child) => {
-        const rec = child.val();
-        if(rec.date === today) todayRecords.push(rec);
-      });
-      if(todayRecords.length > 0) {
-        db.ref("dailyArchive/" + today).set(todayRecords);
-        cleanOldArchives();
-      }
-    });
-  }
-
-  function manualSaveDailyArchive() {
-    const today = getTodayDate();
-    db.ref("attendanceDirect").once("value", (snapshot) => {
-      let todayRecords = [];
-      snapshot.forEach((child) => {
-        const rec = child.val();
-        if(rec.date === today) todayRecords.push(rec);
-      });
-      if(todayRecords.length === 0) {
-        alert("لا توجد سجلات دوام مُسجلة لهذا اليوم لغاية الآن.");
-        return;
-      }
-      db.ref("dailyArchive/" + today).set(todayRecords, (err) => {
-        if(!err) { alert(`تم حفظ أرشيف يوم (${today}) بنجاح!`); cleanOldArchives(); }
-      });
-    });
-  }
-
-  function cleanOldArchives() {
-    db.ref("dailyArchive").once("value", (snapshot) => {
-      if(!snapshot.exists()) return;
-      let dates = [];
-      snapshot.forEach((child) => dates.push(child.key));
-      dates.sort();
-      if(dates.length > 31) {
-        let toRemove = dates.length - 31;
-        for(let i = 0; i < toRemove; i++) db.ref("dailyArchive/" + dates[i]).remove();
-      }
-    });
-  }
-
-  db.ref("dailyArchive").on("value", (snapshot) => {
-    const select = document.getElementById("archiveDateSelect");
-    const currentVal = select.value;
-    select.innerHTML = `<option value="">اختر اليوم لعرض السجل الخاص به...</option>`;
-    let dates = [];
-    snapshot.forEach((child) => dates.push(child.key));
-    dates.sort().reverse();
-    dates.forEach((dKey) => {
-      select.innerHTML += `<option value="${dKey}">سجل يوم: ${dKey}</option>`;
-    });
-    if(currentVal && dates.includes(currentVal)) {
-      select.value = currentVal;
-      displaySelectedArchive();
-    }
-  });
-
-  function displaySelectedArchive() {
-    const dateKey = document.getElementById("archiveDateSelect").value;
-    const list = document.getElementById("archiveDisplayList");
-    if(!dateKey) {
-      list.innerHTML = `<tr><td colspan="4">اختر تاريخاً من القائمة لمشاهدة سجل الدوام الخاص به.</td></tr>`;
-      return;
-    }
-
-    db.ref("dailyArchive/" + dateKey).once("value", (snapshot) => {
-      list.innerHTML = "";
-      if(!snapshot.exists()) {
-        list.innerHTML = `<tr><td colspan="4">لا توجد سجلات محفوظة لهذا اليوم</td></tr>`;
-        return;
-      }
-      snapshot.forEach((child) => {
-        const data = child.val();
-        list.innerHTML += `
-          <tr>
-            <td>${data.name}</td>
-            <td>${data.date}</td>
-            <td>${data.checkIn || '-'}</td>
-            <td>${data.checkOut || '-'}</td>
-          </tr>
-        `;
-      });
-    });
-  }
-
-  function exportArchiveDayToExcel() {
-    const dateKey = document.getElementById("archiveDateSelect").value;
-    if(!dateKey) { alert("اختر تاريخاً لتصديره"); return; }
-    db.ref("dailyArchive/" + dateKey).once("value", (snapshot) => {
-      let csvContent = "\uFEFFاسم الموظف,التاريخ,وقت الحضور,وقت الانصراف\n";
-      snapshot.forEach((child) => {
-        const data = child.val();
-        csvContent += `"${data.name}","${data.date}","${data.checkIn || '-'}","${data.checkOut || '-'}"\n`;
-      });
-      downloadCSV(csvContent, `جدول_دوام_يومي_${dateKey}.csv`);
-    });
-  }
-
-  function exportFullArchiveToExcel() {
-    db.ref("dailyArchive").once("value", (snapshot) => {
-      if(!snapshot.exists()) { alert("الأرشيف فارغ حالياً"); return; }
-      let csvContent = "\uFEFFتاريخ الأرشيف,اسم الموظف,تاريخ الدوام,وقت الحضور,وقت الانصراف\n";
-      let dates = [];
-      snapshot.forEach((child) => dates.push(child.key));
-      dates.sort();
-      dates.forEach((dKey) => {
-        snapshot.child(dKey).forEach((child) => {
-          const data = child.val();
-          csvContent += `"${dKey}","${data.name}","${data.date}","${data.checkIn || '-'}","${data.checkOut || '-'}"\n`;
+    function populateCenterDropdowns() {
+        const ids = ['centerSelect', 'adminCenterSelect', 'adminEmpCenterSelect'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            el.innerHTML = '';
+            appData.centers.forEach((c, idx) => {
+                el.innerHTML += `<option value="${idx}">${c.name}</option>`;
+            });
         });
-      });
-      downloadCSV(csvContent, `الأرشيف_الشهري_31_يوماً_${getTodayDate()}.csv`);
-    });
-  }
+    }
 
-  function downloadCSV(csvContent, filename) {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
+    function switchView(view) {
+        document.getElementById('viewAttendance').style.display = view === 'attendance' ? 'block' : 'none';
+        document.getElementById('viewLeaves').style.display = view === 'leaves' ? 'block' : 'none';
+        document.getElementById('viewAdmin').style.display = view === 'admin' ? 'block' : 'none';
+        
+        document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+            btn.classList.toggle('active', (view==='attendance' && idx===0) || (view==='leaves' && idx===1) || (view==='admin' && idx===2));
+        });
+
+        if(view === 'admin' && document.getElementById('adminPanel').style.display === 'block') {
+            setTimeout(initMap, 200);
+        }
+    }
+
+    // 1. Attendance & Geo Logic
+    function getCurrentLocation() {
+        const status = document.getElementById('geoStatus');
+        status.innerText = "جاري تحديد الموقع...";
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    status.style.color = "green";
+                    status.innerText = `تم تحديد موقعك بنجاح (${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)})`;
+                },
+                (err) => {
+                    status.style.color = "red";
+                    status.innerText = "تعذر تحديد الموقع الجغرافي. يرجى تفعيل الـ GPS.";
+                }
+            );
+        } else {
+            status.innerText = "متصفحك لا يدعم تحديد الموقع.";
+        }
+    }
+
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Earth radius in meters
+        const φ1 = lat1 * Math.PI/180;
+        const φ2 = lat2 * Math.PI/180;
+        const Δφ = (lat2-lat1) * Math.PI/180;
+        const Δλ = (lon2-lon1) * Math.PI/180;
+
+        const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        return R * c; // Distance in meters
+    }
+
+    function renderCenterData() {
+        const cIdx = document.getElementById('centerSelect').value;
+        const center = appData.centers[cIdx];
+        document.getElementById('centerCoords').innerText = `${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`;
+        document.getElementById('centerRadius').innerText = center.radius;
+
+        const grid = document.getElementById('employeeButtonsGrid');
+        grid.innerHTML = '';
+
+        center.employees.forEach(empName => {
+            if(!empName.trim()) return;
+            const todayRecord = (appData.attendance[getTodayKey()] && appData.attendance[getTodayKey()][empName]) || {};
+            
+            const btnIn = todayRecord.checkIn ? `<button class="success" disabled>تم الحضور (${todayRecord.checkIn})</button>` : `<button onclick="markAttendance('${empName}', '${cIdx}', 'in')">تسجيل حضور</button>`;
+            const btnOut = todayRecord.checkOut ? `<button class="danger" disabled>تم الانصراف (${todayRecord.checkOut})</button>` : `<button class="danger" onclick="markAttendance('${empName}', '${cIdx}', 'out')">تسجيل انصراف</button>`;
+
+            grid.innerHTML += `
+                <div style="border:1px solid #ccc; padding:10px; border-radius:5px; text-align:center;">
+                    <strong>${empName}</strong><br><br>
+                    ${btnIn} ${btnOut}
+                </div>
+            `;
+        });
+    }
+
+    function markAttendance(empName, centerIdx, type) {
+        const center = appData.centers[centerIdx];
+        if (!userLocation) {
+            alert("يرجى الضغط على زر (تحديث موقعي الحالي GPS) أولاً لضمان وجودك داخل النطاق!");
+            return;
+        }
+
+        const dist = calculateDistance(userLocation.lat, userLocation.lng, center.lat, center.lng);
+        if (dist > center.radius) {
+            alert(`عذراً! أنت خارج النطاق المسموح للمركز. المسافة الحالية: ${Math.round(dist)} متر.`);
+            addAlert(`محاولة تسجيل ${type === 'in' ? 'حضور' : 'انصراف'} مرفوضة للموظف (${empName}) من خارج النطاق.`);
+            return;
+        }
+
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+        const todayKey = getTodayKey();
+
+        if (!appData.attendance[todayKey]) appData.attendance[todayKey] = {};
+        if (!appData.attendance[todayKey][empName]) {
+            appData.attendance[todayKey][empName] = { centerName: center.name };
+        }
+
+        if (type === 'in') {
+            appData.attendance[todayKey][empName].checkIn = timeStr;
+            // Check status against workStart
+            if (timeStr > appData.workStart) {
+                appData.attendance[todayKey][empName].status = 'late';
+                addAlert(`تأخير: الموظف (${empName}) سجل حضور متأخراً في الوقت (${timeStr}).`);
+            } else {
+                appData.attendance[todayKey][empName].status = 'on-time';
+            }
+        } else {
+            appData.attendance[todayKey][empName].checkOut = timeStr;
+        }
+
+        saveData();
+        alert(`تم تسجيل ${type === 'in' ? 'الحضور' : 'الانصراف'} بنجاح الساعة ${timeStr}`);
+    }
+
+    function addAlert(msg) {
+        const card = document.getElementById('alertsCard');
+        const list = document.getElementById('alertsList');
+        card.style.display = 'block';
+        list.innerHTML += `<li>${msg} - (${new Date().toLocaleTimeString()})</li>`;
+    }
+
+    // Render Live Table & Alerts
+    function renderAll() {
+        document.getElementById('ticker').innerText = appData.ticker;
+        document.getElementById('displayWorkStart').innerText = appData.workStart;
+
+        // Render Live Status
+        const tbody = document.getElementById('liveStatusTable');
+        tbody.innerHTML = '';
+        const todayData = appData.attendance[getTodayKey()] || {};
+
+        appData.centers.forEach(c => {
+            c.employees.forEach(emp => {
+                if(!emp.trim()) return;
+                const rec = todayData[emp];
+                let statusBadge = `<span class="badge bg-orange">لم يسجل بعد</span>`;
+                let checkInTime = '-';
+                let checkOutTime = '-';
+
+                if (rec) {
+                    checkInTime = rec.checkIn || '-';
+                    checkOutTime = rec.checkOut || '-';
+                    if (rec.status === 'late') statusBadge = `<span class="badge bg-red">مسجل متأخر</span>`;
+                    else if (rec.status === 'on-time') statusBadge = `<span class="badge bg-green">مسجل بوقت منظم</span>`;
+                }
+
+                const deleteBtn = rec ? `<button class="danger" onclick="deleteEmpRecord('${emp}')">حذف السجل</button>` : '-';
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${emp}</strong></td>
+                        <td>${c.name}</td>
+                        <td>${checkInTime}</td>
+                        <td>${checkOutTime}</td>
+                        <td>${statusBadge}</td>
+                        <td>${deleteBtn}</td>
+                    </tr>
+                `;
+            });
+        });
+
+        renderCenterData();
+        renderLeaves();
+    }
+
+    function deleteEmpRecord(empName) {
+        if(confirm(`هل أنت تأكد من حذف سجل اليوم للموظف (${empName})؟`)) {
+            delete appData.attendance[getTodayKey()][empName];
+            saveData();
+        }
+    }
+
+    // 2. Leaves System Logic
+    function toggleLeaveFields() {
+        const type = document.getElementById('leaveType').value;
+        document.getElementById('hourlyFields').style.display = type === 'hourly' ? 'block' : 'none';
+    }
+
+    function submitLeave() {
+        const empName = document.getElementById('leaveEmpName').value.trim();
+        const reason = document.getElementById('leaveReason').value.trim();
+        const type = document.getElementById('leaveType').value;
+
+        if(!empName || !reason) {
+            alert("يرجى كتابة اسم الموظف وسبب الإجازة!");
+            return;
+        }
+
+        let details = "يوم كامل";
+        if(type === 'hourly') {
+            const start = document.getElementById('leaveStartTime').value;
+            const hrs = document.getElementById('leaveHours').value;
+            if(!start || !hrs) { alert("يرجى تحديد وقت البدء وعدد الساعات للإجازة الساعية!"); return; }
+            details = `ساعية (تبدأ: ${start} لمدة ${hrs} ساعة)`;
+        }
+
+        appData.leaves.push({
+            id: Date.now(),
+            empName,
+            type,
+            details,
+            reason,
+            status: 'قيد الانتظار'
+        });
+
+        document.getElementById('leaveEmpName').value = '';
+        document.getElementById('leaveReason').value = '';
+        saveData();
+        alert("تم تقديم طلب الإجازة بنجاح!");
+    }
+
+    function renderLeaves() {
+        const myTbody = document.getElementById('myLeavesTable');
+        const adminTbody = document.getElementById('adminLeavesTable');
+        myTbody.innerHTML = '';
+        adminTbody.innerHTML = '';
+
+        appData.leaves.forEach(l => {
+            let statusColor = l.status === 'مقبولة' ? 'bg-green' : l.status === 'مرفوضة' ? 'bg-red' : 'bg-orange';
+            const cancelBtn = l.status === 'قيد الانتظار' ? `<button class="danger" onclick="cancelLeave(${l.id})">إلغاء</button>` : '-';
+
+            myTbody.innerHTML += `
+                <tr>
+                    <td>${l.empName}</td>
+                    <td>${l.type === 'full' ? 'يوم كامل' : 'ساعية'}</td>
+                    <td>${l.details}</td>
+                    <td>${l.reason}</td>
+                    <td><span class="badge ${statusColor}">${l.status}</span></td>
+                    <td>${cancelBtn}</td>
+                </tr>
+            `;
+
+            adminTbody.innerHTML += `
+                <tr>
+                    <td>${l.empName}</td>
+                    <td>${l.type === 'full' ? 'يوم كامل' : 'ساعية'}</td>
+                    <td>${l.details}</td>
+                    <td>${l.reason}</td>
+                    <td><span class="badge ${statusColor}">${l.status}</span></td>
+                    <td>
+                        <button class="success" onclick="updateLeaveStatus(${l.id}, 'مقبولة')">قبول</button>
+                        <button class="danger" onclick="updateLeaveStatus(${l.id}, 'مرفوضة')">رفض</button>
+                        <button onclick="deleteLeavePermanently(${l.id})">حذف نهائي</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function cancelLeave(id) {
+        appData.leaves = appData.leaves.filter(l => l.id !== id);
+        saveData();
+    }
+
+    function updateLeaveStatus(id, status) {
+        const leave = appData.leaves.find(l => l.id === id);
+        if(leave) {
+            leave.status = status;
+            saveData();
+        }
+    }
+
+    function deleteLeavePermanently(id) {
+        if(confirm("هل انت متأكد من الحذف النهائي لطلب الإجازة هذا؟")) {
+            appData.leaves = appData.leaves.filter(l => l.id !== id);
+            saveData();
+        }
+    }
+
+    // 3. Admin Panel Logic
+    function loginAdmin() {
+        const pass = document.getElementById('adminPassInput').value;
+        if(pass === appData.adminPass) {
+            document.getElementById('adminAuth').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            document.getElementById('adminWorkStart').value = appData.workStart;
+            document.getElementById('adminTickerInput').value = appData.ticker;
+            loadAdminCenterDetails();
+            loadAdminEmpList();
+            setTimeout(initMap, 200);
+        } else {
+            alert("كلمة المرور غير صحيحة!");
+        }
+    }
+
+    function saveAdminSettings() {
+        appData.workStart = document.getElementById('adminWorkStart').value;
+        appData.ticker = document.getElementById('adminTickerInput').value;
+        const newPass = document.getElementById('newAdminPass').value;
+        if(newPass.trim()) appData.adminPass = newPass.trim();
+        saveData();
+        alert("تم حفظ الإعدادات العامة بنجاح!");
+    }
+
+    // Map & Center Admin
+    function initMap() {
+        if(!map) {
+            map = L.map('map').setView([33.5138, 36.2765], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            map.on('click', onMapClick);
+        }
+        updateMapGraphic();
+    }
+
+    function onMapClick(e) {
+        const cIdx = document.getElementById('adminCenterSelect').value;
+        appData.centers[cIdx].lat = e.latlng.lat;
+        appData.centers[cIdx].lng = e.latlng.lng;
+        updateMapGraphic();
+    }
+
+    function updateMapGraphic() {
+        const cIdx = document.getElementById('adminCenterSelect').value;
+        const center = appData.centers[cIdx];
+        
+        if (marker) map.removeLayer(marker);
+        if (circle) map.removeLayer(circle);
+
+        marker = L.marker([center.lat, center.lng], {draggable: true}).addTo(map);
+        circle = L.circle([center.lat, center.lng], {radius: parseInt(center.radius)}).addTo(map);
+        
+        map.setView([center.lat, center.lng], 14);
+
+        marker.on('dragend', function (e) {
+            const coord = e.target.getLatLng();
+            appData.centers[cIdx].lat = coord.lat;
+            appData.centers[cIdx].lng = coord.lng;
+            updateMapGraphic();
+        });
+    }
+
+    function loadAdminCenterDetails() {
+        const cIdx = document.getElementById('adminCenterSelect').value;
+        const center = appData.centers[cIdx];
+        document.getElementById('adminCenterName').value = center.name;
+        document.getElementById('adminCenterRadius').value = center.radius;
+        if(map) updateMapGraphic();
+    }
+
+    function saveCenterSettings() {
+        const cIdx = document.getElementById('adminCenterSelect').value;
+        appData.centers[cIdx].name = document.getElementById('adminCenterName').value;
+        appData.centers[cIdx].radius = document.getElementById('adminCenterRadius').value;
+        populateCenterDropdowns();
+        saveData();
+        alert("تم حفظ بيانات المركز بنجاح!");
+    }
+
+    // Employees Admin
+    function loadAdminEmpList() {
+        const cIdx = document.getElementById('adminEmpCenterSelect').value;
+        const container = document.getElementById('empInputsContainer');
+        container.innerHTML = '';
+        appData.centers[cIdx].employees.forEach((emp, i) => {
+            container.innerHTML += `
+                <div>
+                    <label>موظف ${i + 1}:</label>
+                    <input type="text" id="empInput_${i}" value="${emp}">
+                </div>
+            `;
+        });
+    }
+
+    function saveEmployees() {
+        const cIdx = document.getElementById('adminEmpCenterSelect').value;
+        for(let i = 0; i < 20; i++) {
+            appData.centers[cIdx].employees[i] = document.getElementById(`empInput_${i}`).value.trim();
+        }
+        saveData();
+        alert("تم حفظ أسماء الموظفين للشاعر بنجاح!");
+    }
+
+    // Export Excel/CSV
+    function exportCurrentDayCSV() {
+        let csvContent = "\uFEFFالموظف,المركز,وقت الحضور,وقت الانصراف,الحالة\n";
+        const todayData = appData.attendance[getTodayKey()] || {};
+
+        appData.centers.forEach(c => {
+            c.employees.forEach(emp => {
+                if(!emp.trim()) return;
+                const rec = todayData[emp] || {};
+                csvContent += `"${emp}","${c.name}","${rec.checkIn || '-'}","${rec.checkOut || '-'}","${rec.status || 'لم يسجل'}"\n`;
+            });
+        });
+
+        downloadCSV(csvContent, `جدول_دوام_${getTodayKey()}.csv`);
+    }
+
+    function exportMonthlyCSV() {
+        let csvContent = "\uFEFFالتاريخ,الموظف,المركز,وقت الحضور,وقت الانصراف,الحالة\n";
+        
+        for (const [date, records] of Object.entries(appData.attendance)) {
+            appData.centers.forEach(c => {
+                c.employees.forEach(emp => {
+                    if(!emp.trim()) return;
+                    const rec = records[emp] || {};
+                    csvContent += `"${date}","${emp}","${c.name}","${rec.checkIn || '-'}","${rec.checkOut || '-'}","${rec.status || 'لم يسجل'}"\n`;
+                });
+            });
+        }
+
+        downloadCSV(csvContent, `أرشيف_جدول_الدوام_الشهري.csv`);
+    }
+
+    function downloadCSV(csvContent, fileName) {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", fileName);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 </script>
 </body>
 </html>
