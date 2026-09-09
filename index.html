@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <title>نظام إدارة الدوام للمراكز</title>
+  <title>نظام إدارة الدوام والمراكز</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
   <!-- مكتبة الخرائط Leaflet CSS -->
@@ -31,10 +31,13 @@
     .late-box { background:#fadbd8; border:2px solid #e74c3c; padding:12px; border-radius:8px; margin-bottom:15px; color:#c0392b; text-align:right; }
     .late-user { color:#e74c3c; font-weight:bold; display:inline-block; background:#fff; padding:3px 8px; border-radius:4px; margin:3px; border:1px solid #e74c3c; }
     .alert-box { background:#e8f8f5; border-right:4px solid #27ae60; padding:10px; margin-bottom:15px; border-radius:4px; }
-    .hidden { display:none; }
+    
+    /* إصلاح كلاس الإخفاء للتغلب على الأنماط الأخرى */
+    .hidden { display:none !important; }
     .flex-group { display:flex; gap:10px; align-items:center; }
     #map { height: 320px; width: 100%; border-radius: 8px; margin: 10px 0; border: 1px solid #ccc; z-index: 1; }
     
+    /* النافذة المنبثقة تكون مخفية افتراضياً وتظهر فقط عند إزالة كلاس hidden */
     .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:999; }
     .modal-content { background:white; padding:20px; border-radius:10px; width:90%; max-width:450px; text-align:right; }
   </style>
@@ -155,7 +158,7 @@
     </div>
   </div>
 
-  <!-- النافذة المنبثقة لطلب الإجازة -->
+  <!-- النافذة المنبثقة لطلب الإجازة (تحتوي على كلاس hidden افتراضياً) -->
   <div id="leaveModal" class="modal hidden">
     <div class="modal-content">
       <h3 id="leaveModalTitle">طلب إجازة للموظف</h3>
@@ -313,7 +316,7 @@
         const now = new Date();
         const [startH, startM] = workStartTime.split(':').map(Number);
         const limitTime = new Date();
-        limitTime.setHours(startH, startM + 10, 0); // 10 دقائق سماح
+        limitTime.setHours(startH, startM + 10, 0);
 
         for(let i=0; i<20; i++) {
           const empName = employees[i] || `موظف ${i+1}`;
@@ -346,7 +349,6 @@
           `;
         }
 
-        // إظهار قائمة المتأخرين
         const lateBox = document.getElementById("lateNoticeBox");
         const lateList = document.getElementById("lateList");
         if(lateEmployees.length > 0) {
@@ -359,7 +361,6 @@
     });
   }
 
-  // تسجيل الحضور والانصراف مع فحص GPS الخاص بالمركز
   function recordAttendance(centerId, empIndex, empName, type) {
     if(!empName || empName.includes("موظف ")) {
       alert("يرجى تحديد اسم الموظف أولاً من لوحة تحكم المشرف!");
@@ -407,7 +408,6 @@
     });
   }
 
-  // إدارة النافذة المنبثقة للطلب بالإجازات
   function openLeaveModal(empName, centerId) {
     selectedEmpForLeave = { name: empName, centerId: centerId };
     document.getElementById("leaveModalTitle").innerText = `طلب إجازة لـ: ${empName}`;
@@ -456,7 +456,6 @@
     });
   }
 
-  // جلب الطلبات والإشعارات للإدارة
   function listenToLeaves() {
     db.ref("leaveRequests").on("value", (snap) => {
       const container = document.getElementById("adminNotifications");
@@ -499,7 +498,6 @@
     db.ref(`leaveRequests/${key}`).update({ status: status });
   }
 
-  // إدارة موقع الخريطة لكل مركز
   function loadCenterGeoSettings() {
     const cId = document.getElementById("adminCenterSelect").value;
     db.ref(`settings/geoFence/${cId}`).once("value", (snap) => {
@@ -565,7 +563,6 @@
     });
   }
 
-  // إدارة قائمة الـ 20 موظف لكل مركز
   function loadCenterEmployeesForEdit() {
     const cId = document.getElementById("adminCenterEmpSelect").value;
     const container = document.getElementById("employeeInputsContainer");
