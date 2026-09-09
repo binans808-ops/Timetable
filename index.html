@@ -52,47 +52,27 @@
         <ul id="alertsList" style="color:var(--danger); font-weight:bold;"></ul>
     </div>
 
-    <!-- أزرار التنقل بين المراكز واللوحات -->
+    <!-- أزرار التنقل -->
     <div style="margin-bottom: 15px; text-align: center;">
         <button class="tab-btn active" onclick="switchView('attendance')">سجل الدوام</button>
         <button class="tab-btn" onclick="switchView('leaves')">طلب إجازة</button>
         <button class="tab-btn" onclick="switchView('admin')">لوحة التحكم للإشراف</button>
     </div>
 
-    <!-- 1. قسم تسجيل الدوام والمتابعة -->
+    <!-- 1. قسم تسجيل الدوام للموظف -->
     <div id="viewAttendance">
         <div class="card">
             <h3>اختر المركز الميداني</h3>
             <select id="centerSelect" onchange="renderCenterData()">
-                <!-- سيتم ملء 6 مراكز ديناميكياً -->
+                <!-- 6 مراكز -->
             </select>
             <p><strong>الموقع المطلوب:</strong> <span id="centerCoords">-</span> | <strong>نصف القطر المسموح:</strong> <span id="centerRadius">-</span> متر</p>
-            <button onclick="getCurrentLocation()">تحديث موقعي الحالي (GPS)</button>
-            <p id="geoStatus" style="font-weight: bold;"></p>
+            <p id="geoStatus" style="font-weight: bold; color: var(--accent);">ملاحظة: سيتم تحديد موقعك الجغرافي تلقائياً فور الضغط على زر الحضور/الانصراف (متاح من 5:00 ص إلى 7:00 م).</p>
         </div>
 
         <div class="card">
             <h3>تسجيل الحضور والانصراف</h3>
             <div id="employeeButtonsGrid" class="grid"></div>
-        </div>
-
-        <!-- جدول المتابعة الموحد لليوم -->
-        <div class="card">
-            <h3>جدول المتابعة الموحد لليوم</h3>
-            <p>وقت بدء الدوام المحدد: <strong id="displayWorkStart">08:00</strong></p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>الموظف</th>
-                        <th>المركز</th>
-                        <th>حضور</th>
-                        <th>انصراف</th>
-                        <th>الحالة</th>
-                        <th>إجراء الإدارة</th>
-                    </tr>
-                </thead>
-                <tbody id="liveStatusTable"></tbody>
-            </table>
         </div>
     </div>
 
@@ -130,7 +110,6 @@
                         <th>الموظف</th>
                         <th>النوع</th>
                         <th>التفاصيل</th>
-                        <th>السبب</th>
                         <th>الحالة</th>
                         <th>إلغاء</th>
                     </tr>
@@ -140,15 +119,34 @@
         </div>
     </div>
 
-    <!-- 3. لوحة التحكم للإشراف -->
+    <!-- 3. لوحة التحكم للإشراف (تظهر فقط عند الدخول) -->
     <div id="viewAdmin" style="display:none;">
         <div class="card" id="adminAuth">
             <h3>تسجيل الدخول للإشراف</h3>
-            <input type="password" id="adminPassInput" placeholder="أدخل كلمة المرور">
+            <input type="password" id="adminPassInput" placeholder="أدخل كلمة المرور (الافتراضية: 1234)">
             <button onclick="loginAdmin()">دخول</button>
         </div>
 
         <div id="adminPanel" style="display:none;">
+            <!-- جدول المتابعة الموحد لليوم (يظهر فقط للمشرف) -->
+            <div class="card">
+                <h3>جدول المتابعة الموحد لليوم</h3>
+                <p>وقت بدء الدوام المحدد: <strong id="displayWorkStart">08:00 AM</strong></p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الموظف</th>
+                            <th>المركز</th>
+                            <th>حضور</th>
+                            <th>انصراف</th>
+                            <th>الحالة</th>
+                            <th>إجراء الإدارة</th>
+                        </tr>
+                    </thead>
+                    <tbody id="liveStatusTable"></tbody>
+                </table>
+            </div>
+
             <!-- إعدادات العامة ووقت الدوام -->
             <div class="card">
                 <h3>إعدادات النظام العامة</h3>
@@ -183,7 +181,8 @@
                     <option value="1000">1000 متر</option>
                 </select>
 
-                <p>حدد موقع المركز بالنقر على الخريطة:</p>
+                <p>حدد موقع المركز بالنقر على الخريطة أو باستخدام الزر التالي:</p>
+                <button type="button" style="margin-bottom:10px;" onclick="getAdminCurrentLocation()">تحديد موقعي الحالي تلقائياً (GPS للمشرف)</button>
                 <div id="map"></div>
                 
                 <button class="success" onclick="saveCenterSettings()">حفظ إعدادات المركز</button>
@@ -201,7 +200,7 @@
                 <button class="success" onclick="saveEmployees()">حفظ قائمة الأسماء</button>
             </div>
 
-            <!-- إدارة الإجازات للإشراف -->
+            <!-- إدارة الإجازات للإشراف (يظهر السبب هنا فقط) -->
             <div class="card">
                 <h3>طلبات الإجازات للإشراف</h3>
                 <table>
@@ -210,7 +209,7 @@
                             <th>الموظف</th>
                             <th>النوع</th>
                             <th>التفاصيل</th>
-                            <th>السبب</th>
+                            <th>سبب طلب الإجازة</th>
                             <th>الحالة</th>
                             <th>إجراء الإدارة</th>
                         </tr>
@@ -233,7 +232,6 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // System Data Structures
     let defaultData = {
         adminPass: "1234",
         workStart: "08:00",
@@ -246,8 +244,8 @@
             radius: 300,
             employees: Array.from({length: 20}, (_, j) => `موظف ${j + 1}`)
         })),
-        attendance: {}, // Date string -> { empId/Name: { checkIn, checkOut, centerId, status } }
-        leaves: [] // List of leaves
+        attendance: {},
+        leaves: []
     };
 
     let appData = JSON.parse(localStorage.getItem('jadwal_dawam_data')) || defaultData;
@@ -257,14 +255,23 @@
         renderAll();
     }
 
-    let userLocation = null;
     let map, marker, circle;
 
     function getTodayKey() {
         return new Date().toISOString().split('T')[0];
     }
 
-    // Init App
+    // تنسيق الوقت بنظام 12 ساعة (AM/PM)
+    function formatTime12Hour(timeString) {
+        if (!timeString || timeString === '-') return '-';
+        let [hours, minutes] = timeString.split(':');
+        hours = parseInt(hours);
+        let ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; 
+        return `${hours.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+    }
+
     window.onload = function() {
         if (!appData.attendance[getTodayKey()]) {
             appData.attendance[getTodayKey()] = {};
@@ -298,29 +305,9 @@
         }
     }
 
-    // 1. Attendance & Geo Logic
-    function getCurrentLocation() {
-        const status = document.getElementById('geoStatus');
-        status.innerText = "جاري تحديد الموقع...";
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    status.style.color = "green";
-                    status.innerText = `تم تحديد موقعك بنجاح (${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)})`;
-                },
-                (err) => {
-                    status.style.color = "red";
-                    status.innerText = "تعذر تحديد الموقع الجغرافي. يرجى تفعيل الـ GPS.";
-                }
-            );
-        } else {
-            status.innerText = "متصفحك لا يدعم تحديد الموقع.";
-        }
-    }
-
+    // حساب المسافات الجغرافية
     function calculateDistance(lat1, lon1, lat2, lon2) {
-        const R = 6371e3; // Earth radius in meters
+        const R = 6371e3;
         const φ1 = lat1 * Math.PI/180;
         const φ2 = lat2 * Math.PI/180;
         const Δφ = (lat2-lat1) * Math.PI/180;
@@ -331,7 +318,7 @@
                 Math.sin(Δλ/2) * Math.sin(Δλ/2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 
-        return R * c; // Distance in meters
+        return R * c;
     }
 
     function renderCenterData() {
@@ -347,8 +334,8 @@
             if(!empName.trim()) return;
             const todayRecord = (appData.attendance[getTodayKey()] && appData.attendance[getTodayKey()][empName]) || {};
             
-            const btnIn = todayRecord.checkIn ? `<button class="success" disabled>تم الحضور (${todayRecord.checkIn})</button>` : `<button onclick="markAttendance('${empName}', '${cIdx}', 'in')">تسجيل حضور</button>`;
-            const btnOut = todayRecord.checkOut ? `<button class="danger" disabled>تم الانصراف (${todayRecord.checkOut})</button>` : `<button class="danger" onclick="markAttendance('${empName}', '${cIdx}', 'out')">تسجيل انصراف</button>`;
+            const btnIn = todayRecord.checkIn ? `<button class="success" disabled>تم الحضور (${formatTime12Hour(todayRecord.checkIn)})</button>` : `<button onclick="markAttendanceAutoGPS('${empName}', '${cIdx}', 'in')">تسجيل حضور</button>`;
+            const btnOut = todayRecord.checkOut ? `<button class="danger" disabled>تم الانصراف (${formatTime12Hour(todayRecord.checkOut)})</button>` : `<button class="danger" onclick="markAttendanceAutoGPS('${empName}', '${cIdx}', 'out')">تسجيل انصراف</button>`;
 
             grid.innerHTML += `
                 <div style="border:1px solid #ccc; padding:10px; border-radius:5px; text-align:center;">
@@ -359,59 +346,83 @@
         });
     }
 
-    function markAttendance(empName, centerIdx, type) {
-        const center = appData.centers[centerIdx];
-        if (!userLocation) {
-            alert("يرجى الضغط على زر (تحديث موقعي الحالي GPS) أولاً لضمان وجودك داخل النطاق!");
-            return;
-        }
-
-        const dist = calculateDistance(userLocation.lat, userLocation.lng, center.lat, center.lng);
-        if (dist > center.radius) {
-            alert(`عذراً! أنت خارج النطاق المسموح للمركز. المسافة الحالية: ${Math.round(dist)} متر.`);
-            addAlert(`محاولة تسجيل ${type === 'in' ? 'حضور' : 'انصراف'} مرفوضة للموظف (${empName}) من خارج النطاق.`);
-            return;
-        }
-
+    // تسجيل الحضور مع تحديد الموقع تلقائياً وفحص أوقات الدخول (5 صباحاً حتى 7 مساءً)
+    function markAttendanceAutoGPS(empName, centerIdx, type) {
         const now = new Date();
-        const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
-        const todayKey = getTodayKey();
+        const currentHour = now.getHours();
 
-        if (!appData.attendance[todayKey]) appData.attendance[todayKey] = {};
-        if (!appData.attendance[todayKey][empName]) {
-            appData.attendance[todayKey][empName] = { centerName: center.name };
+        // التحقق من صلاحية الوقت (بين 5 صباحاً و 19 مساءً)
+        if (currentHour < 5 || currentHour >= 19) {
+            alert("عذراً! التسجيل متاح يومياً فقط من الساعة 5:00 صباحاً وحتى 7:00 مساءً.");
+            return;
         }
 
-        if (type === 'in') {
-            appData.attendance[todayKey][empName].checkIn = timeStr;
-            // Check status against workStart
-            if (timeStr > appData.workStart) {
-                appData.attendance[todayKey][empName].status = 'late';
-                addAlert(`تأخير: الموظف (${empName}) سجل حضور متأخراً في الوقت (${timeStr}).`);
-            } else {
-                appData.attendance[todayKey][empName].status = 'on-time';
+        if (!navigator.geolocation) {
+            alert("متصفحك لا يدعم تحديد الموقع الجغرافي.");
+            return;
+        }
+
+        const statusEl = document.getElementById('geoStatus');
+        statusEl.innerText = "جاري التحقق من الموقع وتسجيل الحضور...";
+
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const userLat = pos.coords.latitude;
+                const userLng = pos.coords.longitude;
+                const center = appData.centers[centerIdx];
+
+                const dist = calculateDistance(userLat, userLng, center.lat, center.lng);
+                
+                if (dist > center.radius) {
+                    alert(`عذراً! أنت خارج النطاق المسموح للمركز. المسافة الحالية: ${Math.round(dist)} متر.`);
+                    addAlert(`محاولة تسجيل ${type === 'in' ? 'حضور' : 'انصراف'} مرفوضة للموظف (${empName}) من خارج النطاق.`);
+                    statusEl.innerText = "فشل التسجيل: الموقع خارج النطاق.";
+                    return;
+                }
+
+                const timeStr = now.toTimeString().split(' ')[0].substring(0, 5);
+                const todayKey = getTodayKey();
+
+                if (!appData.attendance[todayKey]) appData.attendance[todayKey] = {};
+                if (!appData.attendance[todayKey][empName]) {
+                    appData.attendance[todayKey][empName] = { centerName: center.name };
+                }
+
+                if (type === 'in') {
+                    appData.attendance[todayKey][empName].checkIn = timeStr;
+                    if (timeStr > appData.workStart) {
+                        appData.attendance[todayKey][empName].status = 'late';
+                        addAlert(`تأخير: الموظف (${empName}) سجل حضور متأخراً في الوقت (${formatTime12Hour(timeStr)}).`);
+                    } else {
+                        appData.attendance[todayKey][empName].status = 'on-time';
+                    }
+                } else {
+                    appData.attendance[todayKey][empName].checkOut = timeStr;
+                }
+
+                saveData();
+                statusEl.innerText = "تم تسجيل الموقع والعملية بنجاح.";
+                alert(`تم تسجيل ${type === 'in' ? 'الحضور' : 'الانصراف'} بنجاح الساعة ${formatTime12Hour(timeStr)}`);
+            },
+            (err) => {
+                alert("تعذر تحديد موقعك الجغرافي تلقائياً. يرجى تفعيل الـ GPS والسماح بالإذن.");
+                statusEl.innerText = "فشل تحديد الموقع الجغرافي.";
             }
-        } else {
-            appData.attendance[todayKey][empName].checkOut = timeStr;
-        }
-
-        saveData();
-        alert(`تم تسجيل ${type === 'in' ? 'الحضور' : 'الانصراف'} بنجاح الساعة ${timeStr}`);
+        );
     }
 
     function addAlert(msg) {
         const card = document.getElementById('alertsCard');
         const list = document.getElementById('alertsList');
         card.style.display = 'block';
-        list.innerHTML += `<li>${msg} - (${new Date().toLocaleTimeString()})</li>`;
+        list.innerHTML += `<li>${msg} - (${formatTime12Hour(new Date().toTimeString().split(' ')[0].substring(0, 5))})</li>`;
     }
 
-    // Render Live Table & Alerts
     function renderAll() {
         document.getElementById('ticker').innerText = appData.ticker;
-        document.getElementById('displayWorkStart').innerText = appData.workStart;
+        document.getElementById('displayWorkStart').innerText = formatTime12Hour(appData.workStart);
 
-        // Render Live Status
+        // جدول المتابعة للمشرف
         const tbody = document.getElementById('liveStatusTable');
         tbody.innerHTML = '';
         const todayData = appData.attendance[getTodayKey()] || {};
@@ -425,8 +436,8 @@
                 let checkOutTime = '-';
 
                 if (rec) {
-                    checkInTime = rec.checkIn || '-';
-                    checkOutTime = rec.checkOut || '-';
+                    checkInTime = formatTime12Hour(rec.checkIn);
+                    checkOutTime = formatTime12Hour(rec.checkOut);
                     if (rec.status === 'late') statusBadge = `<span class="badge bg-red">مسجل متأخر</span>`;
                     else if (rec.status === 'on-time') statusBadge = `<span class="badge bg-green">مسجل بوقت منظم</span>`;
                 }
@@ -457,7 +468,7 @@
         }
     }
 
-    // 2. Leaves System Logic
+    // 2. الإجازات
     function toggleLeaveFields() {
         const type = document.getElementById('leaveType').value;
         document.getElementById('hourlyFields').style.display = type === 'hourly' ? 'block' : 'none';
@@ -478,7 +489,7 @@
             const start = document.getElementById('leaveStartTime').value;
             const hrs = document.getElementById('leaveHours').value;
             if(!start || !hrs) { alert("يرجى تحديد وقت البدء وعدد الساعات للإجازة الساعية!"); return; }
-            details = `ساعية (تبدأ: ${start} لمدة ${hrs} ساعة)`;
+            details = `ساعية (تبدأ: ${formatTime12Hour(start)} لمدة ${hrs} ساعة)`;
         }
 
         appData.leaves.push({
@@ -506,23 +517,24 @@
             let statusColor = l.status === 'مقبولة' ? 'bg-green' : l.status === 'مرفوضة' ? 'bg-red' : 'bg-orange';
             const cancelBtn = l.status === 'قيد الانتظار' ? `<button class="danger" onclick="cancelLeave(${l.id})">إلغاء</button>` : '-';
 
+            // للموظف (بدون إظهار السبب)
             myTbody.innerHTML += `
                 <tr>
                     <td>${l.empName}</td>
                     <td>${l.type === 'full' ? 'يوم كامل' : 'ساعية'}</td>
                     <td>${l.details}</td>
-                    <td>${l.reason}</td>
                     <td><span class="badge ${statusColor}">${l.status}</span></td>
                     <td>${cancelBtn}</td>
                 </tr>
             `;
 
+            // للمشرف فقط (يحتوي على سبب الإجازة)
             adminTbody.innerHTML += `
                 <tr>
                     <td>${l.empName}</td>
                     <td>${l.type === 'full' ? 'يوم كامل' : 'ساعية'}</td>
                     <td>${l.details}</td>
-                    <td>${l.reason}</td>
+                    <td><strong>${l.reason}</strong></td>
                     <td><span class="badge ${statusColor}">${l.status}</span></td>
                     <td>
                         <button class="success" onclick="updateLeaveStatus(${l.id}, 'مقبولة')">قبول</button>
@@ -554,7 +566,7 @@
         }
     }
 
-    // 3. Admin Panel Logic
+    // 3. المشرف
     function loginAdmin() {
         const pass = document.getElementById('adminPassInput').value;
         if(pass === appData.adminPass) {
@@ -579,7 +591,22 @@
         alert("تم حفظ الإعدادات العامة بنجاح!");
     }
 
-    // Map & Center Admin
+    // زر تحديد موقع المشرف تلقائياً
+    function getAdminCurrentLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const cIdx = document.getElementById('adminCenterSelect').value;
+                    appData.centers[cIdx].lat = pos.coords.latitude;
+                    appData.centers[cIdx].lng = pos.coords.longitude;
+                    updateMapGraphic();
+                    alert("تم تعيين الموقع الحالي للمركز بنجاح!");
+                },
+                () => alert("تعذر الوصول إلى الموقع الجغرافي للمشرف.")
+            );
+        }
+    }
+
     function initMap() {
         if(!map) {
             map = L.map('map').setView([33.5138, 36.2765], 13);
@@ -633,7 +660,6 @@
         alert("تم حفظ بيانات المركز بنجاح!");
     }
 
-    // Employees Admin
     function loadAdminEmpList() {
         const cIdx = document.getElementById('adminEmpCenterSelect').value;
         const container = document.getElementById('empInputsContainer');
@@ -654,10 +680,9 @@
             appData.centers[cIdx].employees[i] = document.getElementById(`empInput_${i}`).value.trim();
         }
         saveData();
-        alert("تم حفظ أسماء الموظفين للشاعر بنجاح!");
+        alert("تم حفظ أسماء الموظفين بنجاح!");
     }
 
-    // Export Excel/CSV
     function exportCurrentDayCSV() {
         let csvContent = "\uFEFFالموظف,المركز,وقت الحضور,وقت الانصراف,الحالة\n";
         const todayData = appData.attendance[getTodayKey()] || {};
@@ -666,7 +691,7 @@
             c.employees.forEach(emp => {
                 if(!emp.trim()) return;
                 const rec = todayData[emp] || {};
-                csvContent += `"${emp}","${c.name}","${rec.checkIn || '-'}","${rec.checkOut || '-'}","${rec.status || 'لم يسجل'}"\n`;
+                csvContent += `"${emp}","${c.name}","${formatTime12Hour(rec.checkIn)}","${formatTime12Hour(rec.checkOut)}","${rec.status || 'لم يسجل'}"\n`;
             });
         });
 
@@ -681,7 +706,7 @@
                 c.employees.forEach(emp => {
                     if(!emp.trim()) return;
                     const rec = records[emp] || {};
-                    csvContent += `"${date}","${emp}","${c.name}","${rec.checkIn || '-'}","${rec.checkOut || '-'}","${rec.status || 'لم يسجل'}"\n`;
+                    csvContent += `"${date}","${emp}","${c.name}","${formatTime12Hour(rec.checkIn)}","${formatTime12Hour(rec.checkOut)}","${rec.status || 'لم يسجل'}"\n`;
                 });
             });
         }
