@@ -28,6 +28,11 @@
     th, td { padding:8px; border:1px solid #ddd; text-align:center; vertical-align:middle; }
     th { background:#2c3e50; color:white; }
     
+    /* ألوان حالات جدول الإدارة اليومي */
+    .status-on-time { color: #27ae60; font-weight: bold; }
+    .status-late { color: #e74c3c; font-weight: bold; background-color: #fadbd8; }
+    .status-absent { color: #e67e22; font-weight: bold; }
+    
     .late-box { background:#fadbd8; border:2px solid #e74c3c; padding:12px; border-radius:8px; margin-bottom:15px; color:#c0392b; text-align:right; }
     .late-user { color:#e74c3c; font-weight:bold; display:inline-block; background:#fff; padding:3px 8px; border-radius:4px; margin:3px; border:1px solid #e74c3c; }
     .alert-box { background:#e8f8f5; border-right:4px solid #27ae60; padding:10px; margin-bottom:15px; border-radius:4px; text-align:right; }
@@ -140,6 +145,28 @@
     </div>
 
     <div id="adminDashboard" class="hidden">
+      
+      <!-- ** الجديد: جدول متابعة حالة التسجيل اليومي الشامل للموظفين (خاص بالإدارة) ** -->
+      <div style="background: #ebf5fb; padding: 15px; border-radius: 8px; border: 1px solid #3498db; margin-bottom: 20px;">
+        <h3 style="margin-top:0; color:#2980b9;">📋 جدول حالة التسجيل لجميع الموظفين اليوم</h3>
+        <p style="font-size:12px; color:#555;">يعرض الموظفين المسجلين اليوم، والغير مسجلين، ويبرز المتأخرين باللون الأحمر.</p>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>المركز</th>
+                <th>اسم الموظف</th>
+                <th>وقت الحضور</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody id="adminDailyStatusBody">
+              <tr><td colspan="4">جاري تحليل حالة التسجيل اليومية...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- الإشعارات والتنبيهات -->
       <h3>🔔 الإشعارات والتجاوزات الحديثة</h3>
       <div id="adminNotifications" class="alert-box">لا توجد إشعارات جديدة حالياً</div>
@@ -355,6 +382,7 @@
     listenToLeaves();
     listenToOverruns();
     listenToAttendanceDirect();
+    listenToAdminDailyStatus();
   };
 
   function switchRole(role) {
@@ -507,6 +535,94 @@
         }
       });
     });
+  }
+
+  /* --- تابع متابعة جدول التسجيل اليومي للإدارة --- */
+  function listenToAdminDailyStatus() {
+    const today = getTodayDate();
+    
+    db.ref("centers").on("value", (centersSnap) => {
+      db.ref(`attendance/${today}`).on("value", (attSnap) => {
+        const tbody = document.getElementById("adminDailyStatusBody");
+        tbody.innerHTML = "";
+        
+        const allCentersData = centersSnap.val() || {};
+        const todayAttendance = attSnap.val() || {};
+        
+        let hasData = false;
+
+        for(let centerId = 1; centerId <= 6; centerId++) {
+          const centerName = currentCenterNames[centerId] || `مركـز ${centerId}`;
+          const empList = (allCentersData[centerId] && allCentersData[centerId].employees) ? allCentersData[centerId].employees : [];
+          const centerAtt = todayAttendance[centerId] || {};
+
+          for(let i = 0; i < empList.length; i++) {
+            const empName = empList[i];
+            if(empName && empName.trim() !== "" && !empName.includes("موظف ")) {
+              hasData = true;
+              const rec = centerAtt[i] || {};
+              const checkInTime = rec.checkIn || "-";
+              
+              let statusText = "لم يسجل بعد ⏳";
+              let statusClass = "status-absent";
+
+              if(checkInTime !== "-") {
+                // التأكد من التأخير
+                let isLate = checkIfTimeIsLate(checkInTime);
+                if(isLate) {
+                  statusText = "سجّل متأخراً ⚠️";
+                  statusClass = "status-late";
+                } else {
+                  statusText = "سجّل بوقت منظم ✅";
+                  statusClass = "status-on-time";
+                }
+              }
+
+              tbody.innerHTML += `
+                <tr>
+                  <td><b>${centerName}</b></td>
+                  <td>${empName}</td>
+                  <td>${checkInTime}</td>
+                  <td class="${statusClass}">${statusText}</td>
+                </tr>
+              `;
+            }
+          }
+        }
+
+        if(!hasData) {
+          tbody.innerHTML = `<tr><td colspan="4">لا يجد أسماء موظفين مضافة في المراكز حتى الآن</td></tr>`;
+        }
+      });
+    });
+  }
+
+  function checkIfTimeIsLate(timeStr) {
+    if(!timeStr || timeStr === "-") return false;
+    try {
+      const [startH, startM] = workStartTime.split(':').map(Number);
+      // معالجة الوقت إذا كان بصيغة AM/PM أو 24 ساعة
+      let checkDate = new Date();
+      let parts = timeStr.split(" ");
+      let timeParts = parts[0].split(":");
+      let h = parseInt(timeParts[0]);
+      let m = parseInt(timeParts[1]);
+
+      if(parts[1]) {
+        if(parts[1].includes("م") || parts[1].toLowerCase().includes("pm")) {
+          if(h < 12) h += 12;
+        } else if(parts[1].includes("ص") || parts[1].toLowerCase().includes("am")) {
+          if(h === 12) h = 0;
+        }
+      }
+
+      let startMinutes = startH * 60 + startM + 10; // 10 دقائق سماح
+      let actualMinutes = h * 60 + m;
+
+      return actualMinutes > startMinutes;
+    } catch(e) {
+      return false;
+    }
   }
 
   function recordAttendance(centerId, empIndex, empName, type) {
